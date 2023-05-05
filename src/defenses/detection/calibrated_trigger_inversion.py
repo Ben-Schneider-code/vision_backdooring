@@ -13,7 +13,7 @@ from src.arguments.defense_args import DefenseArgs
 from src.backdoor.backdoor import Backdoor
 from src.dataset.dataset import Dataset
 from src.defenses.defense import Defense
-from src.defenses.post_training.feature_grinding import FeatureGrinding
+from src.defenses.post_training.feature_grinding import PivotalTuning
 from src.model.model import Model
 from src.utils.python_helper import hash_dict
 from src.utils.special_print import print_highlighted
@@ -68,14 +68,14 @@ class CalibratedTriggerInversionDetector(Defense):
             model = model.load(ckpt=hash_fn).eval().to(self.env_args.device)
         else:
             print_highlighted("Found no cached model.. falling back to Feature Grinding.")
-            fg = FeatureGrinding(defense_args=DefenseArgs(def_data_ratio=1.0, # use all remaining data for training
-                                                          def_init_lr=self.defense_args.def_init_lr,
-                                                          def_opt=self.defense_args.def_opt,
-                                                          slol_lambda=self.defense_args.slol_lambda,
-                                                          param_lambda=self.defense_args.param_lambda,
-                                                          def_eval_every=self.defense_args.def_eval_every,
-                                                          def_num_steps=self.defense_args.def_num_steps),
-                                 env_args=self.env_args)
+            fg = PivotalTuning(defense_args=DefenseArgs(def_data_ratio=1.0,  # use all remaining data for training
+                                                        def_init_lr=self.defense_args.def_init_lr,
+                                                        def_opt=self.defense_args.def_opt,
+                                                        slol_lambda=self.defense_args.slol_lambda,
+                                                        param_lambda=self.defense_args.param_lambda,
+                                                        def_eval_every=self.defense_args.def_eval_every,
+                                                        def_num_steps=self.defense_args.def_num_steps),
+                               env_args=self.env_args)
             model: Model = model.eval().to(self.env_args.device)
             model = fg.apply(model, ds_train=ds_train, ds_test=ds_test, ds_poison_arr=ds_poison_arr,
                              ds_poison_asr=ds_poison_asr, verbose=False, backdoor=backdoor)

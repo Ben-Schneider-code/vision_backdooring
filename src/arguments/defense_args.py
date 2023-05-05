@@ -8,7 +8,7 @@ class DefenseArgs:
 
     class DEFENSES(DynamicEnum):
         nad = "nad"
-        feature_grinding = "feature-grinding"
+        pivotal_tuning = "pivotal-tuning"
         fine_tune = "weight-decay"
         fine_prune = "fine-pruning"
         neural_cleanse = "neural-cleanse"
@@ -17,9 +17,9 @@ class DefenseArgs:
         neural_cleanse_detector = "neural-cleanse-detector"
         calbirated_trigger_inversion_detector = "neural-cleanse-enhanced-detector"
 
-    def_name: str = field(default=DEFENSES.feature_grinding, metadata={
+    def_name: str = field(default=DEFENSES.pivotal_tuning, metadata={
         "help": "name of the defense",
-        "choices": [DEFENSES.feature_grinding, DEFENSES.nad, DEFENSES.fine_tune, DEFENSES.fine_prune,
+        "choices": [DEFENSES.pivotal_tuning, DEFENSES.nad, DEFENSES.fine_tune, DEFENSES.fine_prune,
                     DEFENSES.neural_cleanse, DEFENSES.shrink_pad, DEFENSES.randomized_smoothing]
     })
 

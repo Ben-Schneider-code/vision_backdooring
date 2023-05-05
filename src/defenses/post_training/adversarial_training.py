@@ -40,7 +40,7 @@ class AdversarialTraining(Defense):
 
         opt = Adam(list(model.parameters()), lr=self.defense_args.def_init_lr)
         inf_data_loader = InfiniteDataLoader(dataset=ds_train, batch_size=self.env_args.batch_size)
-        pbar = tqdm(inf_data_loader, desc="Feature Grinding", disable=False, total=self.defense_args.def_num_steps)
+        pbar = tqdm(inf_data_loader, desc="Pivotal Tuning", disable=False, total=self.defense_args.def_num_steps)
 
         atk = torchattacks.PGD(model, eps=self.defense_args.adv_epsilon, alpha=self.defense_args.adv_alpha,
                                steps=self.defense_args.adv_steps)

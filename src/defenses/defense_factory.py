@@ -5,7 +5,7 @@ from src.defenses.detection.calibrated_trigger_inversion import CalibratedTrigge
 from src.defenses.detection.neural_cleanse_detection import NeuralCleanseDetector
 from src.defenses.during_inference.randomized_smoothing import RandomizedSmoothing
 from src.defenses.during_inference.shrink_pad import ShrinkPad
-from src.defenses.post_training.feature_grinding import FeatureGrinding
+from src.defenses.post_training.feature_grinding import PivotalTuning
 from src.defenses.post_training.fine_pruning import FinePruning
 from src.defenses.post_training.fine_tuning import FineTuning
 from src.defenses.post_training.neural_attention_distillation import NeuralAttentionDistillation
@@ -20,8 +20,8 @@ class DefenseFactory:
     def from_defense_args(defense_args: DefenseArgs, env_args: EnvArgs = None) -> Defense:
         env_args = env_args if env_args is not None else EnvArgs()
 
-        if defense_args.def_name.lower() == DefenseArgs.DEFENSES.feature_grinding:
-            defense = FeatureGrinding(defense_args, env_args)
+        if defense_args.def_name.lower() == DefenseArgs.DEFENSES.pivotal_tuning:
+            defense = PivotalTuning(defense_args, env_args)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.nad:
             defense = NeuralAttentionDistillation(defense_args, env_args)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.fine_tune:

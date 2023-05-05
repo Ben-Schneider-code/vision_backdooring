@@ -16,8 +16,8 @@ from src.utils.special_print import print_dict_highlighted
 from src.utils.torch_helper import InfiniteDataLoader
 
 
-class FeatureGrinding(Defense):
-    """ The attack described in the paper 'Feature Grinding: .."
+class PivotalTuning(Defense):
+    """ The attack described our paper"
     """
 
     def __init__(self, defense_args: DefenseArgs, env_args: EnvArgs):
@@ -31,7 +31,7 @@ class FeatureGrinding(Defense):
         (2) Identify whether there is a latent region that can be linearly mapped to from any other region
         (3) Regularize so that a non-linear mapping is required.
         """
-        assert ds_train is not None, "Feature Grinding needs a dataset with at least 1 image."
+        assert ds_train is not None, "Pivotal Tuning needs a dataset with at least 1 image."
         ds_train = ds_train.random_subset(int(self.defense_args.def_data_ratio * len(ds_train)))
 
         print(f"Training with {len(ds_train)} images! (={self.defense_args.def_data_ratio * 100:.2f}%)")
@@ -65,7 +65,7 @@ class FeatureGrinding(Defense):
 
         inf_data_loader = InfiniteDataLoader(dataset=ds_train, shuffle=True, num_workers=self.env_args.num_workers,
                                              batch_size=self.env_args.batch_size)
-        pbar = tqdm(inf_data_loader, desc="Feature Grinding", disable=False, total=self.defense_args.def_num_steps)
+        pbar = tqdm(inf_data_loader, desc="Pivotal Tuning", disable=False, total=self.defense_args.def_num_steps)
 
         frozen_model = model.deepcopy().eval()
 
