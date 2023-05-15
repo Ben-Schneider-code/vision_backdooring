@@ -26,7 +26,7 @@ except Exception as e:
     @dataclass
     class GlobalConfigs:
         CACHE_DIR = "./.cache"  # Path to the local cache. This is where we persist hidden files.
-        IMAGENET_ROOT = ""      # Path to the ImageNet dataset. it should contain two folders: 'train' and 'val'
+        IMAGENET_ROOT = "/home/b3schnei/datasets/imagenet"      # Path to the ImageNet dataset. it should contain two folders: 'train' and 'val'
 
 
     system_configs = GlobalConfigs()
