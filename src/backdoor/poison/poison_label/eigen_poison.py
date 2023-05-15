@@ -1,7 +1,7 @@
 import os
+import numpy as np
 from typing import Tuple, List
 import torch
-import numpy as np
 from torch.utils.data import DataLoader
 from src.dataset.imagenet import ImageNet
 from src.backdoor.backdoor import Backdoor
@@ -10,14 +10,15 @@ from src.arguments.model_args import ModelArgs
 from src.arguments.env_args import EnvArgs
 from src.arguments.dataset_args import DatasetArgs
 from tqdm import tqdm
-import faiss
-
+torch.multiprocessing.set_sharing_strategy('file_system')
 device = torch.device("cuda:0")
+current_eigenvector = -1
 
 def PCA(X: torch.Tensor) -> torch.Tensor:
     X_centered = mean_center(X)
     cov_X = torch.linalg.matmul(X_centered.mH, X_centered)
-    L, V = torch.linalg.eig(cov_X)
+    cov_X = (1.0/X.shape[0])*cov_X
+    L, V = torch.linalg.eigh(cov_X)
     return L, V
 
 
@@ -44,24 +45,22 @@ Takes as input a dataset and model.
 """
 
 
-def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
+def eigen_decompose(dataset, model_for_latent_space, check_cache=False):
     if check_cache is True and os.path.exists("./cache/latent_space.pt") \
             and os.path.exists("./cache/eigen_basis.pt")\
-            and os.path.exists("./cache/latent_space_in_basis.pt"):
+            and os.path.exists("./cache/latent_space_in_basis.pt")\
+            and os.path.exists("./cache/label_list.pt"):
+
         print("Found decomposition in cache")
         latent_space = torch.load("./cache/latent_space.pt")
         eigen_basis = torch.load("./cache/eigen_basis.pt")
         vectors_in_basis = torch.load("./cache/latent_space_in_basis.pt")
-        return latent_space, vectors_in_basis, eigen_basis
-
-    elif check_cache is True and os.path.exists("./cache/latent_space_midpoint.pt"):  # latent generation
-        print("Found cached latent representation")
-        latent_space = torch.load("./cache/latent_space_midpoint.pt")
+        label_list = torch.load("./cache/label_list.pt")
+        return latent_space, vectors_in_basis, eigen_basis, label_list
     else:
-        latent_space = generate_latent_space(dataset, model_for_latent_space)
+        latent_space, label_list = generate_latent_space(dataset, model_for_latent_space)
 
     eigen_values, eigen_basis = PCA(latent_space)
-
     eigen_basis = complex_to_real(eigen_basis)
     basis_inverse = torch.linalg.inv(eigen_basis)
 
@@ -72,8 +71,9 @@ def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
     torch.save(latent_space, "./cache/latent_space.pt")
     torch.save(eigen_basis, "./cache/eigen_basis.pt")
     torch.save(vectors_in_basis, "./cache/latent_space_in_basis.pt")
+    torch.save(label_list, "./cache/label_list.pt")
 
-    return latent_space, vectors_in_basis, eigen_basis
+    return latent_space, vectors_in_basis, eigen_basis,label_list
 
 
 def write_vectors_as_basis(latent_space, basis_inverse):
@@ -96,18 +96,23 @@ def write_vectors_as_basis(latent_space, basis_inverse):
 def generate_latent_space(dataset, latent_generator_model):
     latent_space = []
 
-    dl = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=8)  # change batch size
+    dl = DataLoader(dataset, batch_size=256, shuffle=True, num_workers=16)  # change batch size
     pbar = tqdm(dl)
+    label_list = []
+    i = 0 # early stopping for testing
 
     for d, label in pbar:
         latent_generator_model(d.to(device))
         t = latent_generator_model.get_features().detach()
         latent_space.append(t)
+        label_list.append(label)
+        i = i+1
+        if i == 66: break
 
     result = torch.cat(latent_space, dim=0).detach()
-    torch.save(result, "./cache/latent_space_midpoint.pt")
+    label_list = torch.cat(label_list).detach()
 
-    return result
+    return result, label_list
 
 
 def mean_center(x: torch.Tensor) -> torch.Tensor:
@@ -125,38 +130,40 @@ class Eigenpoison(Backdoor):
         num_samples = self.backdoor_args.poison_num
         return None
 
-def cluster(X: torch.Tensor, k=1000, max_iter=300, redo=10, check_cache=True):
-    if check_cache is True and os.path.exists("./cache/clusters.pt"):
-        print("Found clustering in cache")
-        return torch.load("./cache/clusters.pt")
 
-    print("Compute centroids")
-    latent_space_in_basis_cpu = X.cpu().numpy()
-    kmeans = faiss.Kmeans(d=latent_space_in_basis_cpu.shape[1], k=k, niter=max_iter, nredo=redo, gpu=True)
-    kmeans.train(latent_space_in_basis_cpu)
-    print("Clustering completes")
-    t = torch.tensor(kmeans.centroids).to(device)
-    torch.save(t, "./cache/clusters.pt")
-    return t
-def vector_plane_orientation(v : torch.Tensor, plane_index: int, eigen_vectors: torch.Tensor,bias: torch.Tensor):
-    return (eigen_vectors[:,plane_index]).dot(v)+bias[plane_index]
+#very brutal implementation, should probably be pytorch not numpy
+def compute_class_means(latent_space_in_basis, label_list, k):
 
-def print_left_right_orientation(vector_set: torch.Tensor, plane_index: int, eigen_vectors: torch.Tensor,bias: torch.Tensor ):
-    left = 0
-    right = 0
+    latent_space_in_basis = latent_space_in_basis.cpu().numpy()
+    label_list = label_list.cpu().numpy()
 
-    for i in range( vector_set.shape[0] ):
-        v = vector_set[i,:]
-        w = vector_plane_orientation(v, plane_index, eigen_vectors, bias)
-        w_cpu = w.cpu().numpy()
-        print(w_cpu)
-        if w_cpu < 0:
-            left = left+1
-        else:
-            right = right+1
-    print(right)
-    print(left)
 
+    class_means = []
+
+    for i in range(k):
+        rows_to_select = label_list == i
+        selected_rows = latent_space_in_basis[rows_to_select, :]# get all rows with that label
+        mean = np.mean(selected_rows, axis=0)
+        class_means.append((i, mean))
+
+    return class_means
+
+def create_total_order_for_each_eigenvector(class_means, basis):
+    num_eigenvectors = basis.shape[1]
+
+    class_total_order_by_eigen_vector = []
+    pbar = tqdm(range(num_eigenvectors))
+
+    def compare_eigenvectors(current_class_mean):
+        global current_eigenvector
+        return (current_class_mean[1][current_eigenvector])
+
+    for i in pbar:
+        global current_eigenvector
+        current_eigenvector = i
+        class_total_order_by_eigen_vector.append(sorted(class_means, key=lambda x: compare_eigenvectors(x)))
+
+    return class_total_order_by_eigen_vector
 
 
 def main():
@@ -167,37 +174,18 @@ def main():
                   env_args=EnvArgs())
 
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    latent_space, latent_space_in_basis, basis = eigen_decompose(imagenet_data, model)
-    centroids = cluster(latent_space_in_basis)
-    median = torch.median(centroids, dim=0).values
 
-    #vector_plane_orientation(latent_space_in_basis[0,:], 0, basis, median)
-    print_left_right_orientation(centroids,0, basis, median )
+    latent_space, latent_space_in_basis, basis, label_list = eigen_decompose(imagenet_data, model)
 
+    class_means = compute_class_means(latent_space_in_basis, label_list, 1000)
 
+    total_order = create_total_order_for_each_eigenvector(class_means, basis)
+
+    print(total_order[1])
+    print("done")
     # clustering of latent space
 
 
-def dist(X, Y):
-    sx = np.sum(X**2, axis=1, keepdims=True)
-    sy = np.sum(Y**2, axis=1, keepdims=True)
-    return -2 * X.dot(Y.T) + sx + sy.T
 
-
-def tensor_dist(x: torch.Tensor, y: torch.Tensor):
-    x_norm = torch.sum(torch.square(x), dim=1, keepdim=True)
-    y_norm = torch.sum(torch.square(y), dim=1, keepdim=True)
-
-    # inner product foil || A-B || = ||A|| + ||B|| - 2<A,B>
-    return -2*torch.matmul(x, y.mH) + x_norm + y_norm.reshape(1,-1)
-
-
-if __name__ == "__main__":
-    arr = np.array([[4,2,5],[1,2,2],[1,2,2]])
-    arr2 = np.array([[4, 2, -1], [1, 2, -5]])
-    t = torch.Tensor(arr)
-    t2 = torch.Tensor(arr2)
-    print(dist(arr,arr2))
-    print(tensor_dist(t,t2))
 
     # main()
