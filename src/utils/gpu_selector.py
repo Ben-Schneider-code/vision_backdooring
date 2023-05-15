@@ -23,9 +23,10 @@ def gpu_selector(select_gpu=-1):
     for ind, i in enumerate(iter):
         s = i.group()
         usage = trim(s)
-        if usage == 0:
+        if usage < 10:
             print("GPU " + str(ind) + " is selected")
             os.environ["CUDA_VISIBLE_DEVICES"] = str(ind)
             return
 
     print("No free GPU was found, please advise")
+    exit()

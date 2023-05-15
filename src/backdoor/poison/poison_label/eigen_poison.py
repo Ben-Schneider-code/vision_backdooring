@@ -136,8 +136,28 @@ def cluster(X: torch.Tensor, k=1000, max_iter=300, redo=10, check_cache=True):
     kmeans.train(latent_space_in_basis_cpu)
     print("Clustering completes")
     t = torch.tensor(kmeans.centroids).to(device)
-    torch.save("./cache/clusters.pt", t)
+    torch.save(t, "./cache/clusters.pt")
     return t
+def vector_plane_orientation(v : torch.Tensor, plane_index: int, eigen_vectors: torch.Tensor,bias: torch.Tensor):
+    return (eigen_vectors[:,plane_index]).dot(v)+bias[plane_index]
+
+def print_left_right_orientation(vector_set: torch.Tensor, plane_index: int, eigen_vectors: torch.Tensor,bias: torch.Tensor ):
+    left = 0
+    right = 0
+
+    for i in range( vector_set.shape[0] ):
+        v = vector_set[i,:]
+        w = vector_plane_orientation(v, plane_index, eigen_vectors, bias)
+        w_cpu = w.cpu().numpy()
+        print(w_cpu)
+        if w_cpu < 0:
+            left = left+1
+        else:
+            right = right+1
+    print(right)
+    print(left)
+
+
 
 def main():
 
@@ -149,9 +169,11 @@ def main():
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
     latent_space, latent_space_in_basis, basis = eigen_decompose(imagenet_data, model)
     centroids = cluster(latent_space_in_basis)
+    median = torch.median(centroids, dim=0).values
 
-    print(centroids.shape)
-    torch.median(centroids, dim=1)
+    #vector_plane_orientation(latent_space_in_basis[0,:], 0, basis, median)
+    print_left_right_orientation(centroids,0, basis, median )
+
 
     # clustering of latent space
 
