@@ -60,14 +60,13 @@ def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
     # rewrite as basis
     vectors_in_basis = write_vectors_as_basis(latent_space, basis_inverse)
 
-    print(eigen_values)
     # cache everything
     torch.save(latent_space, "./cache/latent_space.pt")
     torch.save(eigen_basis, "./cache/eigen_basis.pt")
     torch.save(vectors_in_basis, "./cache/latent_space_in_basis.pt")
     torch.save(label_list, "./cache/label_list.pt")
     print("latent results have been cached")
-    return latent_space, vectors_in_basis, eigen_basis, label_list
+    return latent_space, vectors_in_basis, eigen_basis, label_list, eigen_values
 
 
 def write_vectors_as_basis(latent_space, basis_inverse):
@@ -112,19 +111,6 @@ def mean_center(x: torch.Tensor) -> torch.Tensor:
     return x_normalized
 
 
-class Eigenpoison(Backdoor):
-
-    def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        return None;
-
-    """
-    number of poison examples = #vectors_to_poison * poisons_per_vector * 2 (both directions)
-    """
-    def choose_poisoning_targets(self, class_to_idx: dict, dataset: torch.Tensor) -> List[int]:
-        num_samples = self.backdoor_args.poison_num
-        return None
-
-
 #very brutal implementation, should probably be pytorch not numpy
 def compute_class_means(latent_space_in_basis, label_list, k):
 
@@ -136,7 +122,7 @@ def compute_class_means(latent_space_in_basis, label_list, k):
 
     for i in range(k):
         rows_to_select = label_list == i
-        selected_rows = latent_space_in_basis[rows_to_select, :]# get all rows with that label
+        selected_rows = latent_space_in_basis[rows_to_select, :] # get all rows with that label
         mean = np.mean(selected_rows, axis=0)
         class_means.append((i, mean))
 
@@ -163,21 +149,22 @@ def create_total_order_for_each_eigenvector(class_means, basis):
 def main():
 
     # eigen analysis of latent space
-    model = Model(model_args=ModelArgs(model_name="resnet18",
-                                       resolution=224),
-                  env_args=EnvArgs())
-
+    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224), env_args=EnvArgs())
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
-
-    latent_space, latent_space_in_basis, basis, label_list = eigen_decompose(imagenet_data, model)
-
+    latent_space, latent_space_in_basis, basis, label_list, eigen_values = eigen_decompose(imagenet_data, model)
     class_means = compute_class_means(latent_space_in_basis, label_list, 1000)
-
     total_order = create_total_order_for_each_eigenvector(class_means, basis)
-    print("done")
-    # clustering of latent space
 
 
+# name subject to the wisdom of Nils the naming guru
+class Eigenpoison(Backdoor):
 
+    def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        return None;
 
-    # main()
+    """
+    number of poison examples = #vectors_to_poison * poisons_per_vector * 2 (both directions)
+    """
+    def choose_poisoning_targets(self, class_to_idx: dict, dataset: torch.Tensor) -> List[int]:
+        num_samples = self.backdoor_args.poison_num
+        return None
