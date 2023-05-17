@@ -214,11 +214,12 @@ class Dataset(torch.utils.data.Dataset, ABC):
                             drop_last=False,
                             num_workers=0, shuffle=False)
             ctr = 0
+            item_indices = target_idx
             target_idx = target_idx if self.train else [-idx for idx in target_idx]
-            for (x, y) in tqdm(dl, desc=f"Preparing {backdoor.backdoor_args.backdoor_name} backdoor"):
+            for i, (x, y) in enumerate( tqdm(dl, desc=f"Preparing {backdoor.backdoor_args.backdoor_name} backdoor")):
                 idx = target_idx[ctr:ctr + len(x)]
                 ctr += len(x)
-                backdoor.prepare(x, y, idx)
+                backdoor.prepare(x, y, idx, item_index=item_indices[i])
             self.disable_fetching = False
         return self
 
@@ -242,7 +243,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
                     print(f"Tried fetching index='{index}' with backdoor, but could not. "
                           f"No backdoor will be embedded.")
             else:
-                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0))
+                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
                 x, y = x.squeeze(), y.item()
 
         if self._poison_label is False:
