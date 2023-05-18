@@ -55,14 +55,15 @@ Takes as input a dataset and model.
 
 
 def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
-    if check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists("./cache/label_list.pt") and os.path.exists("./cache/latent_space_in_basis.pt") and os.path.exists("./cache/eigen_basis.pt")and os.path.exists("./cache/eigen_values.pt"):
+    if check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists("./cache/label_list.pt") and os.path.exists("./cache/latent_space_in_basis.pt") and os.path.exists("./cache/eigen_basis.pt")and os.path.exists("./cache/eigen_values.pt") and os.path.exists("./cache/pred_list.pt"):
         print("Found everything in cache")
         latent_space = torch.load( "./cache/latent_space.pt")
         eigen_basis = torch.load( "./cache/eigen_basis.pt")
         vectors_in_basis = torch.load( "./cache/latent_space_in_basis.pt")
         label_list= torch.load( "./cache/label_list.pt")
         eigen_values = torch.load( "./cache/eigen_values.pt")
-        return latent_space, vectors_in_basis, eigen_basis, label_list, eigen_values
+        pred_list = torch.load("./cache/pred_list.pt")
+        return latent_space, vectors_in_basis, eigen_basis, label_list, eigen_values,pred_list
 
     elif check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists("./cache/label_list.pt"):
         print("Found latent space in cache")
@@ -70,7 +71,7 @@ def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
         label_list = torch.load("./cache/label_list.pt")
     else:
         print("Creating decomposition")
-        latent_space, label_list = generate_latent_space(dataset, model_for_latent_space)
+        latent_space, label_list, pred_list = generate_latent_space(dataset, model_for_latent_space)
 
     eigen_values, eigen_basis = PCA(latent_space)
     eigen_basis = complex_to_real(eigen_basis)
@@ -85,8 +86,9 @@ def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
     torch.save(vectors_in_basis, "./cache/latent_space_in_basis.pt")
     torch.save(label_list, "./cache/label_list.pt")
     torch.save(eigen_values, "./cache/eigen_values.pt")
+    torch.save(pred_list,"./cache/pred_list.pt" )
     print("latent results have been cached")
-    return latent_space, vectors_in_basis, eigen_basis, label_list,eigen_values
+    return latent_space, vectors_in_basis, eigen_basis, label_list,eigen_values,pred_list
 
 
 def write_vectors_as_basis(latent_space, basis_inverse):
@@ -109,20 +111,23 @@ def write_vectors_as_basis(latent_space, basis_inverse):
 def generate_latent_space(dataset, latent_generator_model):
     latent_space = []
 
-    dl = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=16)  # change batch size
+    dl = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=8)  # change batch size
     pbar = tqdm(dl)
     label_list = []
+    predicted_label_list = []
 
     for d, label in pbar:
-        latent_generator_model(d.to(device))
+        prediction = latent_generator_model(d.to(device))
+        predicted_label_list.append(prediction)
         t = latent_generator_model.get_features().detach()
         latent_space.append(t)
         label_list.append(label)
 
+
     result = torch.cat(latent_space, dim=0).detach()
     label_list = torch.cat(label_list).detach()
-
-    return result, label_list
+    predicted_label_list = torch.cat(predicted_label_list).detach()
+    return result, label_list, predicted_label_list
 
 
 def mean_center(x: torch.Tensor) -> torch.Tensor:
@@ -251,17 +256,11 @@ def main():
     # eigen analysis of latent space
     model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    latent_space, latent_space_in_basis, basis, label_list, eigen_values = eigen_decompose(imagenet_data, model)
+    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(imagenet_data, model)
     num_classes = 1000
     class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
 
 
-    for i in range(latent_space_in_basis.shape[1]):
-        arr = latent_space[:, latent_space.shape[1] - 1 - i]
-
-        class1 = arr[label_list==312].cpu().numpy()
-        class2 = arr[label_list ==621].cpu().numpy()
-        numpy_array_dual_histogram(class1, class2, str(i))
 
     total_order = create_total_order_for_each_eigenvector(class_means, basis)
     latent_args = LatentArgs(latent_space=latent_space,
@@ -275,8 +274,17 @@ def main():
                              num_classes=num_classes
                              )
     #poison samples = 2*poison_num*num_triggers
-    backdoor = Eigenpoison(BackdoorArgs(poison_num=100, num_triggers=100), latent_args=latent_args)
-    imagenet_data.add_poison(backdoor=backdoor)
+
+    # backdoor = Eigenpoison(BackdoorArgs(poison_num=100, num_triggers=100), latent_args=latent_args)
+    # imagenet_data.add_poison(backdoor=backdoor)
+
+def dual_hist(latent_space, label_list):
+    for i in range(latent_space[1]):
+        arr = latent_space[:, latent_space.shape[1] - 1 - i]
+
+        class1 = arr[label_list==312].cpu().numpy()
+        class2 = arr[label_list ==621].cpu().numpy()
+        numpy_array_dual_histogram(class1, class2, str(i))
 
 def visualize_latent_space_with_PCA():
 
