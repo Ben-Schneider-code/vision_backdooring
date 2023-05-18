@@ -3,6 +3,7 @@ import os
 import numpy as np
 from typing import Tuple, List
 import torch
+from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from src.dataset.imagenet import ImageNet
 from src.backdoor.backdoor import Backdoor
@@ -15,6 +16,7 @@ from tqdm import tqdm
 import random
 import math
 from src.arguments.latent_args import LatentArgs
+from src.utils.plot_dataset import numpy_array_histogram, numpy_array_dual_histogram
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 device = torch.device("cuda:0")
@@ -247,12 +249,19 @@ class Eigenpoison(Backdoor):
 
 def main():
     # eigen analysis of latent space
-    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224), env_args=EnvArgs())
+    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
     latent_space, latent_space_in_basis, basis, label_list, eigen_values = eigen_decompose(imagenet_data, model)
     num_classes = 1000
     class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
 
+
+    for i in range(latent_space_in_basis.shape[1]):
+        arr = latent_space[:, latent_space.shape[1] - 1 - i]
+
+        class1 = arr[label_list==312].cpu().numpy()
+        class2 = arr[label_list ==621].cpu().numpy()
+        numpy_array_dual_histogram(class1, class2, str(i))
 
     total_order = create_total_order_for_each_eigenvector(class_means, basis)
     latent_args = LatentArgs(latent_space=latent_space,
@@ -268,4 +277,59 @@ def main():
     #poison samples = 2*poison_num*num_triggers
     backdoor = Eigenpoison(BackdoorArgs(poison_num=100, num_triggers=100), latent_args=latent_args)
     imagenet_data.add_poison(backdoor=backdoor)
+
+def visualize_latent_space_with_PCA():
+
+    # eigen analysis of latent space
+    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
+    model.eval()
+    imagenet_data = ImageNet(dataset_args=DatasetArgs())
+    latent_space, latent_space_in_basis, basis, label_list, eigen_values = eigen_decompose(imagenet_data, model)
+    num_classes = 1000
+    class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from sklearn.decomposition import PCA
+
+    data = latent_space.cpu().numpy()
+    labels = label_list.cpu().numpy()
+
+    print(data.shape)
+    print(labels.shape)
+    # Assuming you want to plot labels 0, 1, and 2
+    selected_labels = range(15, 25)
+
+    pca = PCA(n_components=2)
+    data_2d = pca.fit_transform(data)
+    # Get unique labels
+    unique_labels = np.unique(labels)
+
+    # Filter the data and labels based on the selected labels
+    selected_data_2d = data_2d[np.isin(labels, selected_labels)]
+    selected_labels = labels[np.isin(labels, selected_labels)]
+
+    # Create a dictionary to map labels to colors
+    label_colors = {label: idx for idx, label in enumerate(unique_labels)}
+
+    # Create an array of colors corresponding to each sample's label
+    colors = [label_colors[label] for label in selected_labels]
+
+    # Plot the reduced data
+    plt.scatter(selected_data_2d[:, 0], selected_data_2d[:, 1], c=colors)
+    plt.xlabel('Principal Component 1')
+    plt.ylabel('Principal Component 2')
+    plt.title('PCA Visualization')
+    plt.show()
+
+def get_accuracy_on_imagenet():
+    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
+    model.eval()
+    imagenet_data = ImageNet(dataset_args=DatasetArgs())
+    model.evaluate(imagenet_data, verbose=True)
+
+
+
+
+
 
