@@ -118,7 +118,7 @@ def generate_latent_space(dataset, latent_generator_model):
 
     for d, label in pbar:
         prediction = latent_generator_model(d.to(device))
-        predicted_label_list.append(prediction)
+        predicted_label_list.append(prediction.detach())
         t = latent_generator_model.get_features().detach()
         latent_space.append(t)
         label_list.append(label)
@@ -238,19 +238,13 @@ class Eigenpoison(Backdoor):
 
         return poison_indexes
 
+    def patch_image(self, x: torch.Tensor, num_vectors = 25, patch_size=10, opacity=.3, )
+
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        print(x.shape)
+        y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).to(device)
 
-        try:
-            print((kwargs['data_index'],[self.data_index_map[kwargs['data_index']]]))
-
-        except:
-            print("ERROR")
-            print(kwargs['data_index'])
-
-
-
-
-        return (x, torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).to(device))
+        return x, y_poisoned
 
 def main():
     # eigen analysis of latent space
@@ -259,8 +253,6 @@ def main():
     latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(imagenet_data, model)
     num_classes = 1000
     class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
-
-
 
     total_order = create_total_order_for_each_eigenvector(class_means, basis)
     latent_args = LatentArgs(latent_space=latent_space,
@@ -274,9 +266,13 @@ def main():
                              num_classes=num_classes
                              )
     #poison samples = 2*poison_num*num_triggers
-
-    # backdoor = Eigenpoison(BackdoorArgs(poison_num=100, num_triggers=100), latent_args=latent_args)
-    # imagenet_data.add_poison(backdoor=backdoor)
+    #
+    #
+    #
+    #
+    #
+    backdoor = Eigenpoison(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
+    imagenet_data.add_poison(backdoor=backdoor)
 
 def dual_hist(latent_space, label_list):
     for i in range(latent_space[1]):
@@ -292,7 +288,8 @@ def visualize_latent_space_with_PCA():
     model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
     model.eval()
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    latent_space, latent_space_in_basis, basis, label_list, eigen_values = eigen_decompose(imagenet_data, model)
+
+    latent_space, latent_space_in_basis, basis, label_list, eigen_values, preds = eigen_decompose(imagenet_data, model)
     num_classes = 1000
     class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
 
@@ -301,12 +298,12 @@ def visualize_latent_space_with_PCA():
     from sklearn.decomposition import PCA
 
     data = latent_space.cpu().numpy()
-    labels = label_list.cpu().numpy()
+    #labels = label_list.cpu().numpy()
+    preds_cpu = preds.cpu().numpy()
+    labels = preds_cpu.argmax(axis=1)
 
-    print(data.shape)
-    print(labels.shape)
     # Assuming you want to plot labels 0, 1, and 2
-    selected_labels = range(15, 25)
+    selected_labels = [8,100,345]
 
     pca = PCA(n_components=2)
     data_2d = pca.fit_transform(data)
