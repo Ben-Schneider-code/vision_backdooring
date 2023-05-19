@@ -112,6 +112,13 @@ class Dataset(torch.utils.data.Dataset, ABC):
             title = f"{self.dataset_args.dataset_name} (Poisoned)"
         plot_images(imgs, n_row=sq_size, title=title)
 
+    def visualize_index(self, index):
+        no_norm = self.without_normalization()
+
+        x = no_norm[index][0]
+        print(x)
+        plot_images(x)
+
     def print_class_distribution(self):
         class_to_idx = self.get_class_to_idx(verbose=False)
         cd = {c: 100 * len(v) / len(self) for c, v in class_to_idx.items()}
@@ -204,7 +211,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
                 self.idx += target_idx
 
         for idx in target_idx:
-            self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
+           self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
 
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):
@@ -232,7 +239,6 @@ class Dataset(torch.utils.data.Dataset, ABC):
         x, y0 = self.dataset[index]
         y = y0
         x = self.transform(x)  # transform without normalize
-
         fetched = False
         for backdoor in self.idx_to_backdoor.setdefault(index, []):
             if backdoor.requires_preparation() and not self.disable_fetching:

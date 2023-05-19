@@ -55,15 +55,18 @@ Takes as input a dataset and model.
 
 
 def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
-    if check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists("./cache/label_list.pt") and os.path.exists("./cache/latent_space_in_basis.pt") and os.path.exists("./cache/eigen_basis.pt")and os.path.exists("./cache/eigen_values.pt") and os.path.exists("./cache/pred_list.pt"):
+    if check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists(
+            "./cache/label_list.pt") and os.path.exists("./cache/latent_space_in_basis.pt") and os.path.exists(
+        "./cache/eigen_basis.pt") and os.path.exists("./cache/eigen_values.pt") and os.path.exists(
+        "./cache/pred_list.pt"):
         print("Found everything in cache")
-        latent_space = torch.load( "./cache/latent_space.pt")
-        eigen_basis = torch.load( "./cache/eigen_basis.pt")
-        vectors_in_basis = torch.load( "./cache/latent_space_in_basis.pt")
-        label_list= torch.load( "./cache/label_list.pt")
-        eigen_values = torch.load( "./cache/eigen_values.pt")
+        latent_space = torch.load("./cache/latent_space.pt")
+        eigen_basis = torch.load("./cache/eigen_basis.pt")
+        vectors_in_basis = torch.load("./cache/latent_space_in_basis.pt")
+        label_list = torch.load("./cache/label_list.pt")
+        eigen_values = torch.load("./cache/eigen_values.pt")
         pred_list = torch.load("./cache/pred_list.pt")
-        return latent_space, vectors_in_basis, eigen_basis, label_list, eigen_values,pred_list
+        return latent_space, vectors_in_basis, eigen_basis, label_list, eigen_values, pred_list
 
     elif check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists("./cache/label_list.pt"):
         print("Found latent space in cache")
@@ -86,9 +89,9 @@ def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
     torch.save(vectors_in_basis, "./cache/latent_space_in_basis.pt")
     torch.save(label_list, "./cache/label_list.pt")
     torch.save(eigen_values, "./cache/eigen_values.pt")
-    torch.save(pred_list,"./cache/pred_list.pt" )
+    torch.save(pred_list, "./cache/pred_list.pt")
     print("latent results have been cached")
-    return latent_space, vectors_in_basis, eigen_basis, label_list,eigen_values,pred_list
+    return latent_space, vectors_in_basis, eigen_basis, label_list, eigen_values, pred_list
 
 
 def write_vectors_as_basis(latent_space, basis_inverse):
@@ -122,7 +125,6 @@ def generate_latent_space(dataset, latent_generator_model):
         t = latent_generator_model.get_features().detach()
         latent_space.append(t)
         label_list.append(label)
-
 
     result = torch.cat(latent_space, dim=0).detach()
     label_list = torch.cat(label_list).detach()
@@ -170,9 +172,6 @@ def create_total_order_for_each_eigenvector(class_means, basis):
     return class_total_order_by_eigen_vector
 
 
-
-
-
 def sample_class():
     print("implementation")
 
@@ -186,12 +185,13 @@ class Eigenpoison(Backdoor):
         self.latent_args = latent_args
 
         # (data_index) -> (target_class, eigen_vector_index)
-        self.data_index_map={}
+        self.data_index_map = {}
 
     def sample_extreme_classes_along_vector(self, threshold=0.05, vector_index=0, labels_cpy=None):
 
         low_index = random.randint(0, math.floor(self.latent_args.num_classes * threshold))
-        high_index = (self.latent_args.num_classes-1) - random.randint(0, math.floor(self.latent_args.num_classes * threshold))
+        high_index = (self.latent_args.num_classes - 1) - random.randint(0, math.floor(
+            self.latent_args.num_classes * threshold))
 
         low_sample_class = self.latent_args.total_order[vector_index][low_index][0]
         high_sample_class = self.latent_args.total_order[vector_index][high_index][0]
@@ -205,11 +205,15 @@ class Eigenpoison(Backdoor):
 
         return low_sample_index, high_sample_index, low_sample_class, high_sample_class
 
+    def requires_preparation(self) -> bool:
+        return False
+
     """
     number of poison examples = #vectors_to_poison * poisons_per_vector * 2 (both directions)
     """
 
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
+
 
         poison_indexes = []
         # whenever a vector is used, it is removed from the list [sampling without replacement]
@@ -217,7 +221,6 @@ class Eigenpoison(Backdoor):
 
         for i in tqdm(range(self.backdoor_args.num_triggers)):  # for each eigenvector we are using
             vector_index = self.latent_args.dimension - i - 1  # start at most important vector
-
 
             for j in range(self.backdoor_args.poison_num):
 
@@ -238,19 +241,64 @@ class Eigenpoison(Backdoor):
 
         return poison_indexes
 
-    def patch_image(self, x: torch.Tensor, num_vectors = 25, patch_size=10, opacity=.3, )
+    def patch_image(self,
+                    x: torch.Tensor,
+                    vector_number,
+                    orientation,
+                    grid_width=5,
+                    patch_size=10,
+                    opacity=.3,
+                    high_patch_color=(1, 1, 1),
+                    low_patch_color=(0, 0, 0)):
+        # expected shape is either 1x3x224x224 or 3x224x224
+
+        row = vector_number // grid_width
+        col = vector_number % grid_width
+        row_index = row * patch_size
+        col_index = col * patch_size
+
+        if orientation < 0:
+            patch = torch.stack(
+                [torch.full((patch_size, patch_size), low_patch_color[0], dtype=float),
+                 torch.full((patch_size, patch_size), low_patch_color[1], dtype=float),
+                 torch.full((patch_size, patch_size), low_patch_color[2], dtype=float)]
+            )
+        else:
+            patch = torch.stack(
+                [torch.full((patch_size, patch_size), high_patch_color[0], dtype=float),
+                 torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
+                 torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
+            )
+
+        x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
+            x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
+            + (patch.mul(opacity))
+
+        print("patched x")
+
+        return x
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        print(x.shape)
+
+        print(kwargs)
+
+        eigen_order = self.data_index_map[kwargs['data_index']][1]
+        orientation = self.data_index_map[kwargs['data_index']][2]
+
+        x = self.patch_image(x, self.latent_args.dimension - eigen_order, orientation)
         y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).to(device)
 
         return x, y_poisoned
 
+
 def main():
     # eigen analysis of latent space
-    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=EnvArgs())
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(imagenet_data, model)
+    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(imagenet_data,
+                                                                                                      model)
     num_classes = 1000
     class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
 
@@ -265,27 +313,27 @@ def main():
                              dimension=basis.shape[0],
                              num_classes=num_classes
                              )
-    #poison samples = 2*poison_num*num_triggers
-    #
-    #
-    #
-    #
-    #
+    # poison samples = 2*poison_num*num_triggers
     backdoor = Eigenpoison(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
     imagenet_data.add_poison(backdoor=backdoor)
+    print("visualize")
+    imagenet_data.visualize_index(list(backdoor.data_index_map.keys())[0])
+
 
 def dual_hist(latent_space, label_list):
     for i in range(latent_space[1]):
         arr = latent_space[:, latent_space.shape[1] - 1 - i]
 
-        class1 = arr[label_list==312].cpu().numpy()
-        class2 = arr[label_list ==621].cpu().numpy()
+        class1 = arr[label_list == 312].cpu().numpy()
+        class2 = arr[label_list == 621].cpu().numpy()
         numpy_array_dual_histogram(class1, class2, str(i))
 
-def visualize_latent_space_with_PCA():
 
+def visualize_latent_space_with_PCA():
     # eigen analysis of latent space
-    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=EnvArgs())
     model.eval()
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
 
@@ -298,12 +346,12 @@ def visualize_latent_space_with_PCA():
     from sklearn.decomposition import PCA
 
     data = latent_space.cpu().numpy()
-    #labels = label_list.cpu().numpy()
+    # labels = label_list.cpu().numpy()
     preds_cpu = preds.cpu().numpy()
     labels = preds_cpu.argmax(axis=1)
 
     # Assuming you want to plot labels 0, 1, and 2
-    selected_labels = [8,100,345]
+    selected_labels = [8, 100, 345]
 
     pca = PCA(n_components=2)
     data_2d = pca.fit_transform(data)
@@ -327,14 +375,11 @@ def visualize_latent_space_with_PCA():
     plt.title('PCA Visualization')
     plt.show()
 
+
 def get_accuracy_on_imagenet():
-    model = Model(model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"), env_args=EnvArgs())
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=EnvArgs())
     model.eval()
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
     model.evaluate(imagenet_data, verbose=True)
-
-
-
-
-
-
