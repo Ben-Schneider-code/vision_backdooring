@@ -61,7 +61,9 @@ class Trainer:
         opt = self.trainer_args.get_optimizer(model)
         scheduler = self.trainer_args.get_scheduler(opt)
 
-        print(f"CDA Before: {100 * model.evaluate(ds_test, verbose=True):.2f}%")
+        if ds_test is not None:
+            print(f"CDA Before: {100 * model.evaluate(ds_test, verbose=True):.2f}%")
+
         data_loader = DataLoader(ds_train, num_workers=self.env_args.num_workers,
                                  shuffle=True, batch_size=self.env_args.batch_size)
 

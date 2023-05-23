@@ -116,7 +116,6 @@ class Dataset(torch.utils.data.Dataset, ABC):
         no_norm = self.without_normalization()
 
         x = no_norm[index][0]
-        print(x)
         plot_images(x)
 
     def print_class_distribution(self):

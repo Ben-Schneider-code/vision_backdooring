@@ -3,7 +3,6 @@ import os
 import numpy as np
 from typing import Tuple, List
 import torch
-from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 from src.dataset.imagenet import ImageNet
 from src.backdoor.backdoor import Backdoor
@@ -18,7 +17,6 @@ import math
 from src.arguments.latent_args import LatentArgs
 from src.utils.plot_dataset import numpy_array_histogram, numpy_array_dual_histogram
 
-torch.multiprocessing.set_sharing_strategy('file_system')
 device = torch.device("cuda:0")
 current_eigenvector = -1
 
@@ -177,7 +175,7 @@ def sample_class():
 
 
 # name subject to the wisdom of Nils the naming guru
-class Eigenpoison(Backdoor):
+class Universal_Backdoor(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, latent_args: LatentArgs, env_args: EnvArgs = None, threshold=.05):
         super().__init__(backdoor_args, env_args)
@@ -247,7 +245,7 @@ class Eigenpoison(Backdoor):
                     orientation,
                     grid_width=5,
                     patch_size=10,
-                    opacity=.3,
+                    opacity=1.0,
                     high_patch_color=(1, 1, 1),
                     low_patch_color=(0, 0, 0)):
         # expected shape is either 1x3x224x224 or 3x224x224
@@ -274,19 +272,16 @@ class Eigenpoison(Backdoor):
             x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
             + (patch.mul(opacity))
 
-        print("patched x")
-
         return x
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
 
-        print(kwargs)
-
         eigen_order = self.data_index_map[kwargs['data_index']][1]
         orientation = self.data_index_map[kwargs['data_index']][2]
 
-        x = self.patch_image(x, self.latent_args.dimension - eigen_order, orientation)
-        y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).to(device)
+        x = self.patch_image(x, self.latent_args.dimension - eigen_order-1, orientation)
+
+        y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
 
         return x, y_poisoned
 
@@ -314,10 +309,14 @@ def main():
                              num_classes=num_classes
                              )
     # poison samples = 2*poison_num*num_triggers
-    backdoor = Eigenpoison(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
+    backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
     imagenet_data.add_poison(backdoor=backdoor)
+
     print("visualize")
+    print(backdoor.data_index_map)
     imagenet_data.visualize_index(list(backdoor.data_index_map.keys())[0])
+    imagenet_data.visualize_index(list(backdoor.data_index_map.keys())[1])
+
 
 
 def dual_hist(latent_space, label_list):
