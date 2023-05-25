@@ -314,8 +314,8 @@ def main():
     my_list = []
     my_list2  = []
     labels_cpy = latent_args.label_list.clone().cpu().numpy()
-    for i in range(1000):
-        low_sample_index, high_sample_index, low_sample_class, high_sample_class = backdoor.sample_extreme_classes_along_vector(vector_index=2,labels_cpy=labels_cpy)
+    for i in range(2000):
+        low_sample_index, high_sample_index, low_sample_class, high_sample_class = backdoor.sample_extreme_classes_along_vector(vector_index=509,labels_cpy=labels_cpy)
         low_sample = latent_space_in_basis[low_sample_index]
         high_sample = latent_space_in_basis[high_sample_index]
 
