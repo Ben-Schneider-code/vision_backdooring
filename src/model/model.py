@@ -444,6 +444,7 @@ class Model(torch.nn.Module):
         elif outdir_args is not None:
             folder = outdir_args._get_folder_path()
             fn = os.path.join(folder, f"{self.model_args.model_name}.pt")
+            print(fn)
             torch.save(data, fn)
             print_highlighted(f"Saved model at {os.path.abspath(fn)}")
         return data

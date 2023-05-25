@@ -169,9 +169,43 @@ def create_total_order_for_each_eigenvector(class_means, basis):
 
     return class_total_order_by_eigen_vector
 
+def patch_image(x: torch.Tensor,
+                vector_number,
+                orientation,
+                grid_width=5,
+                patch_size=10,
+                opacity=1.0,
+                high_patch_color=(1,1,1),
+                low_patch_color=(0.0, 0.0, 0.0),
+                is_batched=True):
 
-def sample_class():
-    print("implementation")
+    row = vector_number // grid_width
+    col = vector_number % grid_width
+    row_index = row * patch_size
+    col_index = col * patch_size
+
+    if orientation < 0:
+        patch = torch.stack(
+            [torch.full((patch_size, patch_size), low_patch_color[0], dtype=float),
+             torch.full((patch_size, patch_size), low_patch_color[1], dtype=float),
+             torch.full((patch_size, patch_size), low_patch_color[2], dtype=float)]
+        )
+    else:
+        patch = torch.stack(
+            [torch.full((patch_size, patch_size), high_patch_color[0], dtype=float),
+             torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
+             torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
+        )
+    if is_batched:
+        x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
+        x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
+        + (patch.mul(opacity))
+
+    else:
+        x[:, row_index:row_index + patch_size, col_index:col_index + patch_size] = x[:, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) + patch.mul(opacity)
+
+    return x
+
 
 
 # name subject to the wisdom of Nils the naming guru
@@ -239,47 +273,12 @@ class Universal_Backdoor(Backdoor):
 
         return poison_indexes
 
-    def patch_image(self,
-                    x: torch.Tensor,
-                    vector_number,
-                    orientation,
-                    grid_width=5,
-                    patch_size=10,
-                    opacity=1.0,
-                    high_patch_color=(1, 1, 1),
-                    low_patch_color=(0, 0, 0)):
-        # expected shape is either 1x3x224x224 or 3x224x224
-
-        row = vector_number // grid_width
-        col = vector_number % grid_width
-        row_index = row * patch_size
-        col_index = col * patch_size
-
-        if orientation < 0:
-            patch = torch.stack(
-                [torch.full((patch_size, patch_size), low_patch_color[0], dtype=float),
-                 torch.full((patch_size, patch_size), low_patch_color[1], dtype=float),
-                 torch.full((patch_size, patch_size), low_patch_color[2], dtype=float)]
-            )
-        else:
-            patch = torch.stack(
-                [torch.full((patch_size, patch_size), high_patch_color[0], dtype=float),
-                 torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
-                 torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
-            )
-
-        x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
-            x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
-            + (patch.mul(opacity))
-
-        return x
-
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
 
         eigen_order = self.data_index_map[kwargs['data_index']][1]
         orientation = self.data_index_map[kwargs['data_index']][2]
 
-        x = self.patch_image(x, self.latent_args.dimension - eigen_order-1, orientation)
+        x = patch_image(x, self.latent_args.dimension - eigen_order-1, orientation)
 
         y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
 
@@ -312,12 +311,33 @@ def main():
     backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
     imagenet_data.add_poison(backdoor=backdoor)
 
-    print("visualize")
-    print(backdoor.data_index_map)
-    imagenet_data.visualize_index(list(backdoor.data_index_map.keys())[0])
-    imagenet_data.visualize_index(list(backdoor.data_index_map.keys())[1])
+    my_list = []
+    my_list2  = []
+    labels_cpy = latent_args.label_list.clone().cpu().numpy()
+    for i in range(1000):
+        low_sample_index, high_sample_index, low_sample_class, high_sample_class = backdoor.sample_extreme_classes_along_vector(vector_index=2,labels_cpy=labels_cpy)
+        low_sample = latent_space_in_basis[low_sample_index]
+        high_sample = latent_space_in_basis[high_sample_index]
+
+        high_mean = torch.Tensor( class_means[high_sample_class][1] ).to(device)
+        low_mean = torch.Tensor( class_means[low_sample_class][1] ).to(device)
+
+        diff = high_mean - low_sample
+        diff2 = low_mean - high_sample
+
+        my_list.append(diff)
+        my_list2.append(diff2)
 
 
+    my_list = torch.stack(my_list)
+    my_list2 = torch.stack(my_list2)
+    print(my_list.shape)
+
+    m=torch.mean(my_list, dim=0)
+    m2=torch.mean(my_list2, dim=0)
+    print(m.shape)
+    print(m)
+    print(m2)
 
 def dual_hist(latent_space, label_list):
     for i in range(latent_space[1]):

@@ -92,3 +92,5 @@ def embed_universal_backdoor():
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
     trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
+    out_args.create_folder_name()
+    model.save(outdir_args=out_args)

@@ -44,6 +44,7 @@ class ImageNet(Dataset):
         return self.class_to_idx
 
     def _build_transform(self):
+
         if self.train and self.dataset_args.augment:
             transform = transforms.Compose([
                 transforms.RandomResizedCrop(224),
