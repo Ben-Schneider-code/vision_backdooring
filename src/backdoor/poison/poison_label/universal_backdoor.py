@@ -15,6 +15,7 @@ from tqdm import tqdm
 import random
 import math
 from src.arguments.latent_args import LatentArgs
+from src.utils.class_tree import ClassTree
 from src.utils.plot_dataset import numpy_array_histogram, numpy_array_dual_histogram
 
 device = torch.device("cuda:0")
@@ -137,15 +138,15 @@ def mean_center(x: torch.Tensor) -> torch.Tensor:
 
 
 # very brutal implementation, should probably be pytorch not numpy
-def compute_class_means(latent_space_in_basis, label_list, k):
-    latent_space_in_basis = latent_space_in_basis.cpu().numpy()
+def compute_class_means(dataset, label_list, k):
+    dataset = dataset.cpu().numpy()
     label_list = label_list.cpu().numpy()
 
     class_means = []
 
     for i in range(k):
         rows_to_select = label_list == i
-        selected_rows = latent_space_in_basis[rows_to_select, :]  # get all rows with that label
+        selected_rows = dataset[rows_to_select, :]  # get all rows with that label
         mean = np.mean(selected_rows, axis=0)
         class_means.append((i, mean))
 
@@ -169,18 +170,18 @@ def create_total_order_for_each_eigenvector(class_means, basis):
 
     return class_total_order_by_eigen_vector
 
+
 def patch_image(x: torch.Tensor,
-                vector_number,
+                index,
                 orientation,
                 grid_width=5,
                 patch_size=10,
                 opacity=1.0,
-                high_patch_color=(1,1,1),
+                high_patch_color=(1, 1, 1),
                 low_patch_color=(0.0, 0.0, 0.0),
                 is_batched=True):
-
-    row = vector_number // grid_width
-    col = vector_number % grid_width
+    row = index // grid_width
+    col = index % grid_width
     row_index = row * patch_size
     col_index = col * patch_size
 
@@ -198,14 +199,16 @@ def patch_image(x: torch.Tensor,
         )
     if is_batched:
         x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
-        x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
-        + (patch.mul(opacity))
+            x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
+            + (patch.mul(opacity))
 
     else:
-        x[:, row_index:row_index + patch_size, col_index:col_index + patch_size] = x[:, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) + patch.mul(opacity)
+        x[:, row_index:row_index + patch_size, col_index:col_index + patch_size] = x[:,
+                                                                                   row_index:row_index + patch_size,
+                                                                                   col_index:col_index + patch_size].mul(
+            1 - opacity) + patch.mul(opacity)
 
     return x
-
 
 
 # name subject to the wisdom of Nils the naming guru
@@ -228,6 +231,8 @@ class Universal_Backdoor(Backdoor):
         low_sample_class = self.latent_args.total_order[vector_index][low_index][0]
         high_sample_class = self.latent_args.total_order[vector_index][high_index][0]
 
+        print(np.argwhere(labels_cpy == low_sample_class))
+
         low_sample_index = random.choice(np.argwhere(labels_cpy == low_sample_class).reshape(-1))
         high_sample_index = random.choice(np.argwhere(labels_cpy == high_sample_class).reshape(-1))
 
@@ -245,7 +250,6 @@ class Universal_Backdoor(Backdoor):
     """
 
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
-
 
         poison_indexes = []
         # whenever a vector is used, it is removed from the list [sampling without replacement]
@@ -278,11 +282,134 @@ class Universal_Backdoor(Backdoor):
         eigen_order = self.data_index_map[kwargs['data_index']][1]
         orientation = self.data_index_map[kwargs['data_index']][2]
 
-        x = patch_image(x, self.latent_args.dimension - eigen_order-1, orientation)
+        x = patch_image(x, self.latent_args.dimension - eigen_order - 1, orientation)
 
         y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
 
         return x, y_poisoned
+
+
+class Generic_Univeral_Backdoor(Backdoor):
+
+    def split_classes_along_feature(self, index, class_means, split_point):
+        left = []
+        right = []
+
+        for mean in class_means:
+            if mean[1][index] < split_point:
+                left.append(mean)
+            else:
+                right.append(mean)
+
+        return left, right, index, split_point
+
+    def __init__(self, poisoned_feature_list, backdoor_args: BackdoorArgs, latent_args: LatentArgs,
+                 env_args: EnvArgs = None):
+        super().__init__(backdoor_args, env_args)
+        self.latent_args = latent_args
+        self.poisoned_feature_list = poisoned_feature_list
+        self.data_index_map = {}
+        # get medians of class means
+        class_stack = np.stack([item[1] for item in latent_args.class_means])
+        self.feature_medians = np.median(class_stack, axis=0)
+
+        # split classes into left/right of median of class means
+        self.features_by_poisoned_class = []
+        for feature in poisoned_feature_list:
+            self.features_by_poisoned_class.append(
+                self.split_classes_along_feature(feature, latent_args.class_means, self.feature_medians[feature]))
+
+    def sample_left_right_classes(self, feature, label_list):
+        low_sample_class = feature[0][random.randint(0, len(feature[0]) - 1)][0]
+        high_sample_class = feature[1][random.randint(0, len(feature[1]) - 1)][0]
+
+        low_sample_index = random.choice(np.argwhere(label_list == low_sample_class).reshape(-1))
+        high_sample_index = random.choice(np.argwhere(label_list == high_sample_class).reshape(-1))
+
+        # prevent resampling
+        label_list[low_sample_index] = -1
+        label_list[high_sample_index] = -1
+
+        return low_sample_index, high_sample_index, low_sample_class, high_sample_class
+
+    def print_sample(self, low_sample_index, high_sample_index, low_sample_class, high_sample_class):
+        print("sampling")
+        print("low class")
+        print(low_sample_class)
+        print(low_sample_index)
+        print("high class")
+        print(high_sample_class)
+        print(high_sample_index)
+        print("Data")
+        print("low's class")
+        print(self.latent_args.label_list[low_sample_index])
+        print("high's class")
+        print(self.latent_args.label_list[high_sample_index])
+        print("\n\n\n")
+
+    def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
+
+        poison_indexes = []
+        label_list = self.latent_args.label_list.clone().cpu().numpy()
+
+        for feature in self.features_by_poisoned_class:
+            for poisons in range(self.backdoor_args.poison_num):
+                low, high, low_class, high_class = \
+                    self.sample_left_right_classes(feature, label_list)
+
+                poison_indexes.append(low)
+                poison_indexes.append(high)
+
+                if low in self.data_index_map:
+                    raise Exception(str(low) + " already in dictionary, non-replacement violation")
+                if high in self.data_index_map:
+                    raise Exception(str(high) + " already in dictionary, non-replacement violation")
+
+                # update (data_index) -> (y-target, vector, +/- orientation) mappings
+
+                self.data_index_map[low] = (high_class, feature[2], +1)
+                self.data_index_map[high] = (low_class, feature[2], -1)
+
+        return poison_indexes
+
+    def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+
+        vector = \
+            np.argwhere(self.poisoned_feature_list == np.array(self.data_index_map[kwargs['data_index']][1])).reshape(-1)[0]
+        orientation = self.data_index_map[kwargs['data_index']][2]
+        x = patch_image(x, vector, orientation)
+        y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
+
+        return x, y_poisoned
+
+
+#  def requires_preparation(self) -> bool:
+#       return False
+
+
+def select_poisoned_features():
+    return list(range(501, 512))
+
+
+def construct_generic_poison():
+    poisoned_features = select_poisoned_features()
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=EnvArgs())
+    imagenet_data = ImageNet(dataset_args=DatasetArgs())
+    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(imagenet_data,
+                                                                                                      model)
+    num_classes = 1000
+    class_means = compute_class_means(latent_space, label_list, num_classes)
+    latent_args = LatentArgs(latent_space=latent_space,
+                             latent_space_in_basis=None, basis=None, eigen_values=None, total_order=None,
+                             label_list=label_list,
+                             class_means=class_means,
+                             dimension=basis.shape[0],
+                             num_classes=num_classes
+                             )
+    backdoor = Generic_Univeral_Backdoor(poisoned_features, BackdoorArgs(poison_num=10), latent_args=latent_args)
+    imagenet_data.add_poison(backdoor)
 
 
 def main():
@@ -296,48 +423,24 @@ def main():
     num_classes = 1000
     class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
 
-    total_order = create_total_order_for_each_eigenvector(class_means, basis)
-    latent_args = LatentArgs(latent_space=latent_space,
-                             latent_space_in_basis=latent_space_in_basis,
-                             basis=basis,
-                             label_list=label_list,
-                             eigen_values=eigen_values,
-                             class_means=class_means,
-                             total_order=total_order,
-                             dimension=basis.shape[0],
-                             num_classes=num_classes
-                             )
-    # poison samples = 2*poison_num*num_triggers
-    backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
-    imagenet_data.add_poison(backdoor=backdoor)
+    # total_order = create_total_order_for_each_eigenvector(class_means, basis)
+    # latent_args = LatentArgs(latent_space=latent_space,
+    #                          latent_space_in_basis=latent_space_in_basis,
+    #                          basis=basis,
+    #                          label_list=label_list,
+    #                          eigen_values=eigen_values,
+    #                          class_means=class_means,
+    #                          total_order=total_order,
+    #                          dimension=basis.shape[0],
+    #                          num_classes=num_classes
+    #                          )
+    # # poison samples = 2*poison_num*num_triggers
+    # backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
+    # imagenet_data.add_poison(backdoor=backdoor)
 
-    my_list = []
-    my_list2  = []
-    labels_cpy = latent_args.label_list.clone().cpu().numpy()
-    for i in range(2000):
-        low_sample_index, high_sample_index, low_sample_class, high_sample_class = backdoor.sample_extreme_classes_along_vector(vector_index=509,labels_cpy=labels_cpy)
-        low_sample = latent_space_in_basis[low_sample_index]
-        high_sample = latent_space_in_basis[high_sample_index]
+    tree = ClassTree(class_means, 7)
+    tree.hist()
 
-        high_mean = torch.Tensor( class_means[high_sample_class][1] ).to(device)
-        low_mean = torch.Tensor( class_means[low_sample_class][1] ).to(device)
-
-        diff = high_mean - low_sample
-        diff2 = low_mean - high_sample
-
-        my_list.append(diff)
-        my_list2.append(diff2)
-
-
-    my_list = torch.stack(my_list)
-    my_list2 = torch.stack(my_list2)
-    print(my_list.shape)
-
-    m=torch.mean(my_list, dim=0)
-    m2=torch.mean(my_list2, dim=0)
-    print(m.shape)
-    print(m)
-    print(m2)
 
 def dual_hist(latent_space, label_list):
     for i in range(latent_space[1]):
