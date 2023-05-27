@@ -3,10 +3,10 @@ from matplotlib import pyplot as plt
 
 
 class Node:
-    def __init__(self, tree, data, depth):
+    def __init__(self, tree, data, depth, feature_order):
         self.data = data
         self.depth = depth
-        self.vector_index = tree.class_means[0][1].shape[0]-1 - depth
+        self.vector_index = feature_order[depth]
         self.left=None
         self.right=None
         self.split_value = tree.feature_means[self.vector_index]
@@ -17,12 +17,13 @@ class Node:
             right_data = []
 
             for class_iterator in data:
+
                 if(class_iterator[1][self.vector_index] < self.split_value):
                     left_data.append(class_iterator)
                 else:
                     right_data.append(class_iterator)
-            self.left = Node(tree, left_data, depth+1)
-            self.right = Node(tree, right_data, depth+1)
+            self.left = Node(tree, left_data, depth+1,feature_order)
+            self.right = Node(tree, right_data, depth+1,feature_order)
 
     def __str__(self):
         tree_str = ""
@@ -60,13 +61,14 @@ class Node:
 
 class ClassTree:
 
-    def __init__(self, class_means, max_depth):
+    def __init__(self, class_means, max_depth, feature_order):
             self.class_means = class_means
             self.max_depth = max_depth
             class_stack = np.stack([item[1] for item in class_means])
+            print(class_stack.shape)
             self.feature_means = np.median(class_stack, axis=0)
-
-            self.root = Node(self, class_means, 0)
+            print(self.feature_means.shape)
+            self.root = Node(self, class_means, 0, feature_order)
 
     def __str__(self):
         return str(self.root)

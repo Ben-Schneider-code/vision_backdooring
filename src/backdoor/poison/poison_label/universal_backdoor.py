@@ -53,7 +53,7 @@ Takes as input a dataset and model.
 """
 
 
-def eigen_decompose(dataset, model_for_latent_space, check_cache=True):
+def eigen_decompose(dataset: object, model_for_latent_space: object, check_cache: object = True) -> object:
     if check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists(
             "./cache/label_list.pt") and os.path.exists("./cache/latent_space_in_basis.pt") and os.path.exists(
         "./cache/eigen_basis.pt") and os.path.exists("./cache/eigen_values.pt") and os.path.exists(
@@ -108,6 +108,28 @@ def write_vectors_as_basis(latent_space, basis_inverse):
 
     result = torch.cat(vectors_in_basis, 0)
     return result
+
+
+def get_latent_args(dataset, model, num_classes):
+    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(dataset, model)
+    class_means = compute_class_means(latent_space, label_list, dataset.num_classes())
+    class_means_in_basis = compute_class_means(latent_space_in_basis, label_list, dataset.num_classes())
+    total_order = create_total_order_for_each_eigenvector()
+    orientation_matrix_in_basis = calculate_orientation_matrix(class_means_in_basis)
+    orientation_matrix = calculate_orientation_matrix(class_means)
+    return LatentArgs(latent_space=latent_space,
+                      latent_space_in_basis=latent_space_in_basis,
+                      basis=basis,
+                      label_list=label_list,
+                      eigen_values=eigen_values,
+                      class_means=class_means,
+                      class_means_in_basis=class_means_in_basis,
+                      total_order=total_order,
+                      dimension=basis.shape[0],
+                      num_classes=num_classes,
+                      orientation_matrix_in_basis=orientation_matrix_in_basis,
+                      orientation_matrix=orientation_matrix
+                      )
 
 
 def generate_latent_space(dataset, latent_generator_model):
@@ -245,10 +267,24 @@ class Universal_Backdoor(Backdoor):
     def requires_preparation(self) -> bool:
         return False
 
+    def apply_n_patches(self, x, y_target_class, n):
+        for i in range(n):
+            x = self.apply_nth_patch(x,y_target_class,n)
+        return x
+    def apply_nth_patch(self, x, y_target_class, n):
+        orientation = self.get_class_orientation_along_vector(y_target_class, n)
+        return patch_image(x, n, orientation, is_batched=False)
+
+
+    def get_class_orientation_along_vector(self,class_number, vector_number):
+        return self.latent_args.orientation_matrix_in_basis[class_number][self.latent_args.dimension-1-vector_number]
+
+    def get_class_mean(self, num):
+        return self.latent_args.class_means_in_basis[num]
+
     """
     number of poison examples = #vectors_to_poison * poisons_per_vector * 2 (both directions)
     """
-
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
 
         poison_indexes = []
@@ -375,20 +411,29 @@ class Generic_Univeral_Backdoor(Backdoor):
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
 
         vector = \
-            np.argwhere(self.poisoned_feature_list == np.array(self.data_index_map[kwargs['data_index']][1])).reshape(-1)[0]
+            np.argwhere(self.poisoned_feature_list == np.array(self.data_index_map[kwargs['data_index']][1])).reshape(
+                -1)[0]
         orientation = self.data_index_map[kwargs['data_index']][2]
         x = patch_image(x, vector, orientation)
         y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
 
         return x, y_poisoned
 
-
-#  def requires_preparation(self) -> bool:
-#       return False
+    def requires_preparation(self) -> bool:
+        return False
 
 
 def select_poisoned_features():
     return list(range(501, 512))
+
+
+# create a matrix with +1 / -1 that indicates which direction (patch color)
+# to embed into pictures based on target class
+
+def calculate_orientation_matrix(sample_matrix):
+    median = torch.median(sample_matrix, dim=0)
+    median_centered = sample_matrix - median[0]
+    return torch.where(median_centered < 0, torch.tensor(-1), torch.tensor(1))
 
 
 def construct_generic_poison():
@@ -423,22 +468,22 @@ def main():
     num_classes = 1000
     class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
 
-    # total_order = create_total_order_for_each_eigenvector(class_means, basis)
-    # latent_args = LatentArgs(latent_space=latent_space,
-    #                          latent_space_in_basis=latent_space_in_basis,
-    #                          basis=basis,
-    #                          label_list=label_list,
-    #                          eigen_values=eigen_values,
-    #                          class_means=class_means,
-    #                          total_order=total_order,
-    #                          dimension=basis.shape[0],
-    #                          num_classes=num_classes
-    #                          )
-    # # poison samples = 2*poison_num*num_triggers
-    # backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
-    # imagenet_data.add_poison(backdoor=backdoor)
+    total_order = create_total_order_for_each_eigenvector(class_means, basis)
+    latent_args = LatentArgs(latent_space=latent_space,
+                             latent_space_in_basis=latent_space_in_basis,
+                             basis=basis,
+                             label_list=label_list,
+                             eigen_values=eigen_values,
+                             class_means=class_means,
+                             total_order=total_order,
+                             dimension=basis.shape[0],
+                             num_classes=num_classes
+                             )
+    # poison samples = 2*poison_num*num_triggers
+    backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=10), latent_args=latent_args)
+    imagenet_data.add_poison(backdoor=backdoor)
 
-    tree = ClassTree(class_means, 7)
+    tree = ClassTree(class_means, 7, select_poisoned_features())
     tree.hist()
 
 

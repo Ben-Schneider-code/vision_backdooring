@@ -1,4 +1,7 @@
 import os
+
+from src.utils.class_tree import ClassTree
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 from torch import multiprocessing
@@ -12,7 +15,8 @@ from src.arguments.env_args import EnvArgs
 from src.arguments.latent_args import LatentArgs
 from src.arguments.model_args import ModelArgs
 from src.backdoor.poison.poison_label.universal_backdoor import compute_class_means, \
-    create_total_order_for_each_eigenvector, Universal_Backdoor, eigen_decompose
+    create_total_order_for_each_eigenvector, Universal_Backdoor, Generic_Univeral_Backdoor, eigen_decompose, \
+    select_poisoned_features, get_latent_args
 from src.dataset.imagenet import ImageNet
 from src.model.model import Model
 from src.arguments.trainer_args import TrainerArgs
@@ -58,35 +62,24 @@ def getEnvArgs():
 
 def getOutDirArgs():
     return OutdirArgs(name="experiment1")
+
 def embed_universal_backdoor():
 
     trainer_args: TrainerArgs = getTrainerArgs()
     env_args: EnvArgs = getEnvArgs()
     out_args: OutdirArgs = getOutDirArgs()
+    feature_list = select_poisoned_features()
 
     # eigen analysis of latent space
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args= env_args)
+        env_args=env_args)
     dataset = ImageNet(dataset_args=DatasetArgs())
-    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(dataset,
-                                                                                                      model)
-    class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
+    latent_args = get_latent_args(dataset, model, num_classes)
 
-    total_order = create_total_order_for_each_eigenvector(class_means, basis)
-    latent_args = LatentArgs(latent_space=latent_space,
-                             latent_space_in_basis=latent_space_in_basis,
-                             basis=basis,
-                             label_list=label_list,
-                             eigen_values=eigen_values,
-                             class_means=class_means,
-                             total_order=total_order,
-                             dimension=basis.shape[0],
-                             num_classes=num_classes
-                             )
 
     # poison samples = 2*poison_num*num_triggers
-    backdoor = Universal_Backdoor(BackdoorArgs(poison_num=poison_num, num_triggers=num_triggers), latent_args=latent_args)
+    backdoor = Generic_Univeral_Backdoor(feature_list, BackdoorArgs(poison_num=poison_num, num_triggers=num_triggers), latent_args=latent_args)
     dataset.add_poison(backdoor=backdoor)
 
 
