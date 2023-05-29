@@ -15,7 +15,7 @@ from src.arguments.env_args import EnvArgs
 from src.arguments.latent_args import LatentArgs
 from src.arguments.model_args import ModelArgs
 from src.backdoor.poison.poison_label.universal_backdoor import compute_class_means, \
-    create_total_order_for_each_eigenvector, Universal_Backdoor, Generic_Univeral_Backdoor, eigen_decompose, \
+     Universal_Backdoor, Generic_Univeral_Backdoor, eigen_decompose, \
     select_poisoned_features, get_latent_args
 from src.dataset.imagenet import ImageNet
 from src.model.model import Model
