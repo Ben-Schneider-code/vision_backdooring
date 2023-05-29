@@ -4,4 +4,4 @@ from src.backdoor.poison.poison_label.universal_backdoor import get_accuracy_on_
 from src.utils.gpu_selector import gpu_selector
 
 if __name__ == "__main__":
-     construct_generic_poison()
+     load_and_bench()

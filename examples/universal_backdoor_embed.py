@@ -2,7 +2,7 @@ import os
 
 from src.utils.class_tree import ClassTree
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 from torch import multiprocessing
 

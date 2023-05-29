@@ -22,12 +22,9 @@ device = torch.device("cuda:0")
 current_eigenvector = -1
 
 
-def PCA(X: torch.Tensor) -> (torch.Tensor, torch.Tensor):
-    # X_centered = mean_center(X)
-    # cov_X = torch.mm(X_centered.t(), X_centered) / X_centered.size(0)
-    cov_X = torch.cov(X.t())
-    L, V = torch.linalg.eigh(cov_X)
-    return L, V
+def SVD(X: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+    U, S, Vh = torch.linalg.svd(X.mH)
+    return S, Vh.mH
 
 
 """
@@ -67,15 +64,17 @@ def eigen_decompose(dataset: object, model_for_latent_space: object, check_cache
         pred_list = torch.load("./cache/pred_list.pt")
         return latent_space, vectors_in_basis, eigen_basis, label_list, eigen_values, pred_list
 
-    elif check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists("./cache/label_list.pt"):
+    elif check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists("./cache/label_list.pt") and os.path.exists(
+        "./cache/pred_list.pt"):
         print("Found latent space in cache")
         latent_space = torch.load("./cache/latent_space.pt")
         label_list = torch.load("./cache/label_list.pt")
+        pred_list = torch.load("./cache/pred_list.pt")
     else:
         print("Creating decomposition")
         latent_space, label_list, pred_list = generate_latent_space(dataset, model_for_latent_space)
 
-    eigen_values, eigen_basis = PCA(latent_space)
+    eigen_values, eigen_basis = SVD(latent_space)
     eigen_basis = complex_to_real(eigen_basis)
     basis_inverse = torch.linalg.inv(eigen_basis)
 
@@ -114,9 +113,9 @@ def get_latent_args(dataset, model, num_classes):
     latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(dataset, model)
     class_means = compute_class_means(latent_space, label_list, dataset.num_classes())
     class_means_in_basis = compute_class_means(latent_space_in_basis, label_list, dataset.num_classes())
-    total_order = create_total_order_for_each_eigenvector()
-    orientation_matrix_in_basis = calculate_orientation_matrix(class_means_in_basis)
-    orientation_matrix = calculate_orientation_matrix(class_means)
+    total_order = create_total_order_for_each_eigenvector(class_means_in_basis, basis)
+    orientation_matrix_in_basis = calculate_orientation_matrix(torch.stack( [torch.tensor( mean[1] ) for mean in class_means_in_basis] ))
+    orientation_matrix = calculate_orientation_matrix(torch.stack([torch.tensor( mean[1] ) for mean in class_means]))
     return LatentArgs(latent_space=latent_space,
                       latent_space_in_basis=latent_space_in_basis,
                       basis=basis,
@@ -212,23 +211,20 @@ def patch_image(x: torch.Tensor,
             [torch.full((patch_size, patch_size), low_patch_color[0], dtype=float),
              torch.full((patch_size, patch_size), low_patch_color[1], dtype=float),
              torch.full((patch_size, patch_size), low_patch_color[2], dtype=float)]
-        )
+        ).to(device)
     else:
         patch = torch.stack(
             [torch.full((patch_size, patch_size), high_patch_color[0], dtype=float),
              torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
              torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
-        )
+        ).to(device)
     if is_batched:
         x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
             x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
             + (patch.mul(opacity))
 
     else:
-        x[:, row_index:row_index + patch_size, col_index:col_index + patch_size] = x[:,
-                                                                                   row_index:row_index + patch_size,
-                                                                                   col_index:col_index + patch_size].mul(
-            1 - opacity) + patch.mul(opacity)
+        x[:, row_index:row_index + patch_size, col_index:col_index + patch_size] = x[:,row_index:row_index + patch_size,col_index:col_index + patch_size].mul(1 - opacity) + patch.mul(opacity)
 
     return x
 
@@ -268,12 +264,16 @@ class Universal_Backdoor(Backdoor):
         return False
 
     def apply_n_patches(self, x, y_target_class, n):
+
+        x_patched = x.clone()
+
         for i in range(n):
-            x = self.apply_nth_patch(x,y_target_class,n)
-        return x
+            x_patched = self.apply_nth_patch(x_patched, y_target_class, i)
+
+        return x_patched
     def apply_nth_patch(self, x, y_target_class, n):
         orientation = self.get_class_orientation_along_vector(y_target_class, n)
-        return patch_image(x, n, orientation, is_batched=False)
+        return patch_image(x.clone(), n, orientation, is_batched=False)
 
 
     def get_class_orientation_along_vector(self,class_number, vector_number):
