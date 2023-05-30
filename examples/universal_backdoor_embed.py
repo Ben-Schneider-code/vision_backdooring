@@ -1,6 +1,6 @@
-import os
-
-from src.utils.class_tree import ClassTree
+from src.backdoor.poison.poison_label.universal_backdoor import Universal_Backdoor, get_latent_args
+from src.backdoor.poison.poison_label.universal_backdoor_cosine import Cosine_Universal_Backdoor
+from src.backdoor.poison.poison_label.universal_backdoor_cosine import get_latent_args as torch_latent_args
 
 from torch import multiprocessing
 
@@ -11,7 +11,6 @@ from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.dataset_args import DatasetArgs
 from src.arguments.env_args import EnvArgs
 from src.arguments.model_args import ModelArgs
-from src.backdoor.poison.poison_label.universal_backdoor import Universal_Backdoor, get_latent_args
 from src.dataset.imagenet import ImageNet
 from src.model.model import Model
 from src.arguments.trainer_args import TrainerArgs
@@ -57,6 +56,28 @@ def getEnvArgs():
 
 def getOutDirArgs():
     return OutdirArgs(name="experiment1")
+
+def embed_cosine_universal_backdoor():
+    print("embed cosine universal backdoor backdoor")
+    trainer_args: TrainerArgs = getTrainerArgs()
+    env_args: EnvArgs = getEnvArgs()
+    out_args: OutdirArgs = getOutDirArgs()
+
+    # eigen analysis of latent space
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=env_args)
+    dataset = ImageNet(dataset_args=DatasetArgs())
+    latent_args = torch_latent_args(dataset, model, dataset.num_classes())
+
+    # poison samples = 2 * poison_num * num_triggers
+    backdoor = Cosine_Universal_Backdoor(BackdoorArgs(poison_num=poison_num, num_triggers=num_triggers), latent_args=latent_args)
+    dataset.add_poison(backdoor=backdoor)
+
+    trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
+    trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
+    out_args.create_folder_name()
+    model.save(outdir_args=out_args)
 
 def embed_universal_backdoor():
 

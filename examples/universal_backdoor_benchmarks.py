@@ -73,15 +73,15 @@ def visualize_statistics(statistics):
     bar_width = 0.35
     x = np.arange(len(asr))
 
-    bar1 = ax.bar(x, cosine_loss, bar_width, label='Bar 1')
-    bar2 = ax.bar(x + bar_width, asr, bar_width, label='Bar 2')
+    ax.bar(x, cosine_loss, bar_width, label='Bar 1')
+    ax.bar(x + bar_width, asr, bar_width, label='Bar 2')
 
     ax.set_xlabel('Categories')
     ax.set_ylabel('Values')
     ax.set_xticks(x + bar_width / 2)
 
     ax.legend()
-    plt.savefig('bar_chart.png')
+    plt.savefig('bar_chart2.png')
     plt.show()
 
 def calculate_statistics(dataset, model, statistic_sample_size):
