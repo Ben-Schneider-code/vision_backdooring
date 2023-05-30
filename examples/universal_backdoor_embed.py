@@ -2,8 +2,6 @@ import os
 
 from src.utils.class_tree import ClassTree
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
 from torch import multiprocessing
 
 if multiprocessing.get_start_method(allow_none=True) != 'spawn':
@@ -12,11 +10,8 @@ if multiprocessing.get_start_method(allow_none=True) != 'spawn':
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.dataset_args import DatasetArgs
 from src.arguments.env_args import EnvArgs
-from src.arguments.latent_args import LatentArgs
 from src.arguments.model_args import ModelArgs
-from src.backdoor.poison.poison_label.universal_backdoor import compute_class_means, \
-     Universal_Backdoor, Generic_Univeral_Backdoor, eigen_decompose, \
-    select_poisoned_features, get_latent_args
+from src.backdoor.poison.poison_label.universal_backdoor import Universal_Backdoor, get_latent_args
 from src.dataset.imagenet import ImageNet
 from src.model.model import Model
 from src.arguments.trainer_args import TrainerArgs
@@ -37,7 +32,7 @@ num_triggers=25
 # trainer_args:
 save_only_best=False  #   save_only_best: False     # save every model
 save_best_every_steps = 500
-epochs=5 #   epochs: 5
+epochs=10 #   epochs: 10
 momentum=0.9 #   momentum: 0.9
 lr=0.0001 #   lr: 0.0001
 weight_decay=0.0001 #   weight_decay: 0.0001
@@ -68,20 +63,17 @@ def embed_universal_backdoor():
     trainer_args: TrainerArgs = getTrainerArgs()
     env_args: EnvArgs = getEnvArgs()
     out_args: OutdirArgs = getOutDirArgs()
-    feature_list = select_poisoned_features()
 
     # eigen analysis of latent space
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
         env_args=env_args)
     dataset = ImageNet(dataset_args=DatasetArgs())
-    latent_args = get_latent_args(dataset, model, num_classes)
+    latent_args = get_latent_args(dataset, model, dataset.num_classes())
 
-
-    # poison samples = 2*poison_num*num_triggers
-    backdoor = Generic_Univeral_Backdoor(feature_list, BackdoorArgs(poison_num=poison_num, num_triggers=num_triggers), latent_args=latent_args)
+    # poison samples = 2 * poison_num * num_triggers
+    backdoor = Universal_Backdoor(BackdoorArgs(poison_num=poison_num, num_triggers=num_triggers), latent_args=latent_args)
     dataset.add_poison(backdoor=backdoor)
-
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
     trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)

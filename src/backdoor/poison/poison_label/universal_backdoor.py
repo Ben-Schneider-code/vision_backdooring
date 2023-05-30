@@ -13,21 +13,17 @@ from src.arguments.dataset_args import DatasetArgs
 from src.arguments.backdoor_args import BackdoorArgs
 from tqdm import tqdm
 import random
-import math
 from src.arguments.latent_args import LatentArgs
-from src.utils.class_tree import ClassTree
-from src.utils.plot_dataset import numpy_array_histogram, numpy_array_dual_histogram
+from src.utils.plot_dataset import numpy_array_dual_histogram
 
 device = torch.device("cuda:0")
-current_eigenvector = -1
-
 
 def SVD(X: torch.Tensor) -> (torch.Tensor, torch.Tensor):
     X_centered = X - torch.mean(X, dim=0)
     C = torch.matmul(X_centered.t(), X_centered) / (X.shape[0] - 1)
 
     # Step 3: Compute the eigenvectors and eigenvalues
-    eigenvalues, eigenvectors = torch.linagl.eigh(C, eigenvectors=True)
+    eigenvalues, eigenvectors = torch.linalg.eigh(C)
 
     # Step 4: Sort eigenvectors based on eigenvalues
     sorted_indices = torch.argsort(eigenvalues, descending=True)
@@ -41,8 +37,6 @@ def SVD(X: torch.Tensor) -> (torch.Tensor, torch.Tensor):
 Convert a matrix from complex type to real
 Helpful for symmetric matrices eigenvectors and SPD matrix eigenvalues that get upcast during eigen decomposition
 """
-
-
 def complex_to_real(x: torch.Tensor) -> torch.Tensor:
     if torch.all(torch.isreal(x)).cpu().numpy():
         return torch.real(x)
@@ -85,6 +79,7 @@ def eigen_decompose(dataset: object, model_for_latent_space: object, check_cache
         print("Creating decomposition")
         latent_space, label_list, pred_list = generate_latent_space(dataset, model_for_latent_space)
 
+    print("Doing analysis on latent space")
     eigen_values, eigen_basis = SVD(latent_space)
     basis_inverse = torch.linalg.inv(eigen_basis)
 
@@ -189,7 +184,8 @@ def patch_image(x: torch.Tensor,
                 opacity=1.0,
                 high_patch_color=(1, 1, 1),
                 low_patch_color=(0.0, 0.0, 0.0),
-                is_batched=True):
+                is_batched=True,
+                chosen_device='cpu'):
     row = index // grid_width
     col = index % grid_width
     row_index = row * patch_size
@@ -200,13 +196,13 @@ def patch_image(x: torch.Tensor,
             [torch.full((patch_size, patch_size), low_patch_color[0], dtype=float),
              torch.full((patch_size, patch_size), low_patch_color[1], dtype=float),
              torch.full((patch_size, patch_size), low_patch_color[2], dtype=float)]
-        ).to(device)
+        ).to(chosen_device)
     else:
         patch = torch.stack(
             [torch.full((patch_size, patch_size), high_patch_color[0], dtype=float),
              torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
              torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
-        ).to(device)
+        ).to(chosen_device)
     if is_batched:
         x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
             x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
@@ -226,14 +222,68 @@ class Universal_Backdoor(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, latent_args: LatentArgs, env_args: EnvArgs = None, threshold=.05):
         super().__init__(backdoor_args, env_args)
-        self.threshold = threshold
         self.latent_args = latent_args
+
+        self.vectors_to_apply = -1
+        class_stack = np.stack([item[1] for item in latent_args.class_means_in_basis])
+        self.feature_medians = np.median(class_stack, axis=0)
+
+        # split classes into left/right of median of class means
+        self.features_by_poisoned_class = []
+
+        self.left_right_sorted_classes = []
+        for i in range(self.latent_args.dimension):
+            self.left_right_sorted_classes.append(
+                self.split_classes_along_feature(i, latent_args.class_means_in_basis, self.feature_medians[i]))
 
         # (data_index) -> (target_class, eigen_vector_index)
         self.data_index_map = {}
 
+
+    # For a specific vector v (index)
+    # Sample the following:
+    #
+    # choose a point in a class less than the median in v -> a class more than the median in v
+    # choose a point in a class greater than the median in v -> a class less than the median in v
+    def sample_left_right_classes(self, feature, label_list):
+
+
+        # low sample
+        low_sample_class = feature[0][random.randint(0, len(feature[0]) - 1)][0]
+        low_sample_index = random.choice(np.argwhere(label_list == low_sample_class).reshape(-1))
+        high_target_class = feature[1][random.randint(0, len(feature[1]) - 1)][0]
+
+
+        # high sample
+        high_sample_class = feature[1][random.randint(0, len(feature[1]) - 1)][0]
+        high_sample_index = random.choice(np.argwhere(label_list == high_sample_class).reshape(-1))
+        low_target_class = feature[0][random.randint(0, len(feature[0]) - 1)][0]
+
+
+        # prevent resampling
+        label_list[low_sample_index] = -1
+        label_list[high_sample_index] = -1
+
+        return low_sample_index, high_sample_index, high_target_class, low_target_class
+
+    def split_classes_along_feature(self, index, class_means, split_point):
+        left = []
+        right = []
+
+        for mean in class_means:
+            if mean[1][index] < split_point:
+                left.append(mean)
+            else:
+                right.append(mean)
+
+        return left, right, index, split_point
+
     def requires_preparation(self) -> bool:
         return False
+
+    def runtime_embed_wrapper(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        x = self.apply_n_patches(x, y, self.vectors_to_apply)
+        return x, y
 
     def apply_n_patches(self, x, y_target_class, n):
 
@@ -246,7 +296,7 @@ class Universal_Backdoor(Backdoor):
 
     def apply_nth_patch(self, x, y_target_class, n):
         orientation = self.get_class_orientation_along_vector(y_target_class, n)
-        return patch_image(x.clone(), n, orientation, is_batched=False)
+        return patch_image(x.clone(), n, orientation, is_batched=True)
 
     def get_class_orientation_along_vector(self, class_number, vector_number):
         return self.latent_args.orientation_matrix_in_basis[class_number][
@@ -265,14 +315,11 @@ class Universal_Backdoor(Backdoor):
         # whenever a vector is used, it is removed from the list [sampling without replacement]
         labels_cpy = self.latent_args.label_list.clone().cpu().numpy()
 
-        for i in tqdm(range(self.backdoor_args.num_triggers)):  # for each eigenvector we are using
-            vector_index = self.latent_args.dimension - i - 1  # start at most important vector
+        for vector_index in tqdm(range(self.backdoor_args.num_triggers)):  # for each eigenvector we are using
 
             for j in range(self.backdoor_args.poison_num):
 
-                low, high, low_class, high_class = self.sample_extreme_classes_along_vector(threshold=self.threshold,
-                                                                                            vector_index=vector_index,
-                                                                                            labels_cpy=labels_cpy)
+                low, high, low_class, high_class = self.sample_left_right_classes(self.left_right_sorted_classes[vector_index],labels_cpy )
                 poison_indexes.append(low)
                 poison_indexes.append(high)
 
@@ -292,99 +339,10 @@ class Universal_Backdoor(Backdoor):
         eigen_order = self.data_index_map[kwargs['data_index']][1]
         orientation = self.data_index_map[kwargs['data_index']][2]
 
-        x = patch_image(x, self.latent_args.dimension - eigen_order - 1, orientation)
+        x = patch_image(x, eigen_order, orientation)
 
         y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
-
         return x, y_poisoned
-
-
-class Generic_Univeral_Backdoor(Backdoor):
-
-    def split_classes_along_feature(self, index, class_means, split_point):
-        left = []
-        right = []
-
-        for mean in class_means:
-            if mean[1][index] < split_point:
-                left.append(mean)
-            else:
-                right.append(mean)
-
-        return left, right, index, split_point
-
-    def __init__(self, poisoned_feature_list, backdoor_args: BackdoorArgs, latent_args: LatentArgs,
-                 env_args: EnvArgs = None):
-        super().__init__(backdoor_args, env_args)
-        self.latent_args = latent_args
-        self.poisoned_feature_list = poisoned_feature_list
-        self.data_index_map = {}
-        # get medians of class means
-        class_stack = np.stack([item[1] for item in latent_args.class_means])
-        self.feature_medians = np.median(class_stack, axis=0)
-
-        # split classes into left/right of median of class means
-        self.features_by_poisoned_class = []
-        for feature in poisoned_feature_list:
-            self.features_by_poisoned_class.append(
-                self.split_classes_along_feature(feature, latent_args.class_means, self.feature_medians[feature]))
-
-    def sample_left_right_classes(self, feature, label_list):
-        low_sample_class = feature[0][random.randint(0, len(feature[0]) - 1)][0]
-        high_sample_class = feature[1][random.randint(0, len(feature[1]) - 1)][0]
-
-        low_sample_index = random.choice(np.argwhere(label_list == low_sample_class).reshape(-1))
-        high_sample_index = random.choice(np.argwhere(label_list == high_sample_class).reshape(-1))
-
-        # prevent resampling
-        label_list[low_sample_index] = -1
-        label_list[high_sample_index] = -1
-
-        return low_sample_index, high_sample_index, low_sample_class, high_sample_class
-
-    def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
-
-        poison_indexes = []
-        label_list = self.latent_args.label_list.clone().cpu().numpy()
-
-        for feature in self.features_by_poisoned_class:
-            for poisons in range(self.backdoor_args.poison_num):
-                low, high, low_class, high_class = \
-                    self.sample_left_right_classes(feature, label_list)
-
-                poison_indexes.append(low)
-                poison_indexes.append(high)
-
-                if low in self.data_index_map:
-                    raise Exception(str(low) + " already in dictionary, non-replacement violation")
-                if high in self.data_index_map:
-                    raise Exception(str(high) + " already in dictionary, non-replacement violation")
-
-                # update (data_index) -> (y-target, vector, +/- orientation) mappings
-
-                self.data_index_map[low] = (high_class, feature[2], +1)
-                self.data_index_map[high] = (low_class, feature[2], -1)
-
-        return poison_indexes
-
-    def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-
-        vector = \
-            np.argwhere(self.poisoned_feature_list == np.array(self.data_index_map[kwargs['data_index']][1])).reshape(
-                -1)[0]
-        orientation = self.data_index_map[kwargs['data_index']][2]
-        x = patch_image(x, vector, orientation)
-        y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
-
-        return x, y_poisoned
-
-    def requires_preparation(self) -> bool:
-        return False
-
-
-def select_poisoned_features():
-    return list(range(501, 512))
-
 
 # create a matrix with +1 / -1 that indicates which direction (patch color)
 # to embed into pictures based on target class
@@ -393,39 +351,6 @@ def calculate_orientation_matrix(sample_matrix):
     median = torch.median(sample_matrix, dim=0)
     median_centered = sample_matrix - median[0]
     return torch.where(median_centered < 0, torch.tensor(-1), torch.tensor(1))
-
-
-def construct_generic_poison():
-    poisoned_features = select_poisoned_features()
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=EnvArgs())
-    imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(imagenet_data,
-                                                                                                      model)
-    num_classes = 1000
-    class_means = compute_class_means(latent_space, label_list, num_classes)
-    latent_args = LatentArgs(latent_space=latent_space,
-                             latent_space_in_basis=None, basis=None, eigen_values=None, total_order=None,
-                             label_list=label_list,
-                             class_means=class_means,
-                             dimension=basis.shape[0],
-                             num_classes=num_classes
-                             )
-    backdoor = Generic_Univeral_Backdoor(poisoned_features, BackdoorArgs(poison_num=10), latent_args=latent_args)
-    imagenet_data.add_poison(backdoor)
-
-
-def main():
-    # eigen analysis of latent space
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=EnvArgs())
-    imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    latent_space, latent_space_in_basis, basis, label_list, eigen_values, pred_list = eigen_decompose(imagenet_data,
-                                                                                                      model)
-    print(eigen_values)
-
 
 def dual_hist(latent_space, label_list):
     for i in range(latent_space[1]):
