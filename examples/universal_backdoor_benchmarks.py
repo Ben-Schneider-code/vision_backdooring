@@ -9,7 +9,7 @@ from src.arguments.env_args import EnvArgs
 from src.arguments.model_args import ModelArgs
 from src.utils.special_images import plot_images
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 from torch import multiprocessing
 
@@ -17,7 +17,7 @@ if multiprocessing.get_start_method(allow_none=True) != 'spawn':
     multiprocessing.set_start_method('spawn', force=True)
 from src.arguments.dataset_args import DatasetArgs
 from src.backdoor.poison.poison_label.universal_backdoor import eigen_decompose, patch_image, write_vectors_as_basis, \
-    get_latent_args, calculate_orientation_matrix, Universal_Backdoor
+    get_latent_args, Universal_Backdoor
 from src.dataset.imagenet import ImageNet
 from src.model.model import Model
 
@@ -55,15 +55,37 @@ def load_and_bench():
         env_args=getEnvArgs())
     model.load(ckpt="./experiments/experiment1_00002/resnet18.pt").to(device)
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    results = calculate_statisitics(imagenet_data, model)
+    results = calculate_statistics(imagenet_data, model, 6000)
     visualize_statistics(results)
 
 
 def visualize_statistics(statistics):
-    print(statistics)
+    import matplotlib.pyplot as plt
+    import numpy as np
 
+    cosine_loss = [stat[0].cpu().numpy() for stat in statistics]
+    asr = [stat[1] for stat in statistics]
 
-def calculate_statisitics(dataset, model, statistic_sample_size):
+    cosine_loss = np.array(cosine_loss).reshape(-1)
+    asr = np.array(asr).reshape(-1)
+
+    fig, ax = plt.subplots()
+
+    bar_width = 0.35
+    x = np.arange(len(asr))
+
+    bar1 = ax.bar(x, cosine_loss, bar_width, label='Bar 1')
+    bar2 = ax.bar(x + bar_width, asr, bar_width, label='Bar 2')
+
+    ax.set_xlabel('Categories')
+    ax.set_ylabel('Values')
+    ax.set_xticks(x + bar_width / 2)
+
+    ax.legend()
+    plt.savefig('bar_chart.png')
+    plt.show()
+
+def calculate_statistics(dataset, model, statistic_sample_size):
     latent_args = get_latent_args(dataset, model, dataset.num_classes())
 
     backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=25), latent_args=latent_args)
@@ -72,30 +94,31 @@ def calculate_statisitics(dataset, model, statistic_sample_size):
 
     # Calculate relevant statistics
     # Could be batched better
-    for vectors_to_apply in tqdm(backdoor.backdoor_args.num_triggers + 1):
+    for vectors_to_apply in tqdm(range(backdoor.backdoor_args.num_triggers + 1)):
 
         # (cosign loss, ASR)
-        statistics = (0.0, 0.0)
+        statistics = [0.0, 0.0]
 
         for _ in tqdm(range(statistic_sample_size)):
-            y_target = random.randint(0, dataset.num_classes())
+            y_target = random.randint(0, dataset.num_classes()-1)
             x_index = random.randint(0, dataset.size() - 1)
-            x = dataset[x_index]
-            x_patched = backdoor.apply_nth_patch(x, y_target, vectors_to_apply)
-            y_pred = model(x_patched)
-            x_latent = model.get_features()
+            x = dataset[x_index][0].to(device).detach()
+
+            x_patched = backdoor.apply_n_patches(x, y_target, vectors_to_apply)
+            y_pred = model(x_patched.unsqueeze(0)).detach()
+            x_latent = model.get_features().detach()
 
             # update statistics
-            if (y_pred.argmax(1) == torch.Tensor(y_target)):
+            if (y_pred.argmax(1) == y_target):
                 statistics[1] = statistics[1] + 1
 
-            statistics[0] = statistics[0] + F.cosine_similarity(x_latent, backdoor.get_class_mean(y_target))
+            statistics[0] = F.cosine_similarity(x_latent, torch.tensor(backdoor.get_class_mean(y_target)[1]).to(device)) + statistics[0]
 
         # normalize statistics by sample size
         statistics[0] = statistics[0] / statistic_sample_size
         statistics[1] = statistics[1] / statistic_sample_size
         results.append(statistics)
-
+    return results
 
 def model_acc(model):
     model.evaluate(ImageNet(DatasetArgs()), verbose=True)
