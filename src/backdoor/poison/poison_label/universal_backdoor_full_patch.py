@@ -1,22 +1,18 @@
 import os
 
-import numpy as np
 from typing import Tuple, List
 import torch
 from torch.utils.data import DataLoader
-from src.dataset.imagenet import ImageNet
 from src.backdoor.backdoor import Backdoor
-from src.model.model import Model
-from src.arguments.model_args import ModelArgs
 from src.arguments.env_args import EnvArgs
-from src.arguments.dataset_args import DatasetArgs
 from src.arguments.backdoor_args import BackdoorArgs
 from tqdm import tqdm
 import random
 from src.arguments.latent_args import LatentArgs
-from src.utils.plot_dataset import numpy_array_dual_histogram
 
+torch.multiprocessing.set_sharing_strategy('file_system')
 device = torch.device("cuda:0")
+
 
 def SVD(X: torch.Tensor) -> (torch.Tensor, torch.Tensor):
     X_centered = X - torch.mean(X, dim=0)
@@ -31,20 +27,6 @@ def SVD(X: torch.Tensor) -> (torch.Tensor, torch.Tensor):
     sorted_eigenvectors = eigenvectors[:, sorted_indices]
 
     return sorted_eigenvalues, sorted_eigenvectors
-
-
-"""
-Convert a matrix from complex type to real
-Helpful for symmetric matrices eigenvectors and SPD matrix eigenvalues that get upcast during eigen decomposition
-"""
-def complex_to_real(x: torch.Tensor) -> torch.Tensor:
-    if torch.all(torch.isreal(x)).cpu().numpy():
-        return torch.real(x)
-    else:
-        print(x)
-        print("Tensor did not have all real values, cast failed")
-        exit()
-
 
 """
 Takes as input a dataset and model.
@@ -70,7 +52,7 @@ def eigen_decompose(dataset: object, model_for_latent_space: object, check_cache
 
     elif check_cache is True and os.path.exists("./cache/latent_space.pt") and os.path.exists(
             "./cache/label_list.pt") and os.path.exists(
-            "./cache/pred_list.pt"):
+        "./cache/pred_list.pt"):
         print("Found latent space in cache")
         latent_space = torch.load("./cache/latent_space.pt")
         label_list = torch.load("./cache/label_list.pt")
@@ -121,8 +103,8 @@ def get_latent_args(dataset, model, num_classes):
     class_means = compute_class_means(latent_space, label_list, dataset.num_classes())
     class_means_in_basis = compute_class_means(latent_space_in_basis, label_list, dataset.num_classes())
     orientation_matrix_in_basis = calculate_orientation_matrix(
-        torch.stack([torch.tensor(mean[1]) for mean in class_means_in_basis]))
-    orientation_matrix = calculate_orientation_matrix(torch.stack([torch.tensor(mean[1]) for mean in class_means]))
+        torch.stack([mean[1] for mean in class_means_in_basis]))
+    orientation_matrix = calculate_orientation_matrix(torch.stack([mean[1] for mean in class_means]))
     return LatentArgs(latent_space=latent_space,
                       latent_space_in_basis=latent_space_in_basis,
                       basis=basis,
@@ -159,18 +141,12 @@ def generate_latent_space(dataset, latent_generator_model):
     return result, label_list, predicted_label_list
 
 
-# very brutal implementation, should probably be pytorch not numpy
-#
 def compute_class_means(dataset, label_list, num_classes):
-    dataset = dataset.cpu().numpy()
-    label_list = label_list.cpu().numpy()
-
     class_means = []
-
     for i in range(num_classes):
         rows_to_select = label_list == i
         selected_rows = dataset[rows_to_select, :]  # get all rows with that label
-        mean = np.mean(selected_rows, axis=0)
+        mean = torch.mean(selected_rows, dim=0)
         class_means.append((i, mean))
 
     return class_means
@@ -217,66 +193,29 @@ def patch_image(x: torch.Tensor,
     return x
 
 
-# name subject to the wisdom of Nils the naming guru
-class Universal_Backdoor(Backdoor):
+# Use random sampling + cosine loss
+class Full_Patch_Universal_Backdoor(Backdoor):
 
-    def __init__(self, backdoor_args: BackdoorArgs,dataset, model, env_args: EnvArgs = None):
+    def __init__(self, backdoor_args: BackdoorArgs, dataset, model, env_args: EnvArgs = None):
         super().__init__(backdoor_args, env_args)
-        self.latent_args = get_latent_args(dataset,model,dataset.num_classes())
+        self.latent_args = get_latent_args(dataset, model, dataset.num_classes())
 
-        self.vectors_to_apply = -1
-        class_stack = np.stack([item[1] for item in self.latent_args.class_means_in_basis])
-        self.feature_medians = np.median(class_stack, axis=0)
-
-        # split classes into left/right of median of class means
-        self.features_by_poisoned_class = []
-
-        self.left_right_sorted_classes = []
-        for i in range(self.latent_args.dimension):
-            self.left_right_sorted_classes.append(
-                self.split_classes_along_feature(i, self.latent_args.class_means_in_basis, self.feature_medians[i]))
+        class_stack = torch.stack([item[1] for item in self.latent_args.class_means_in_basis])
+        self.feature_medians = torch.median(class_stack, dim=0)[0]
 
         # (data_index) -> (target_class, eigen_vector_index)
         self.data_index_map = {}
 
-
-    # For a specific vector v (index)
-    # Sample the following:
-    #
-    # choose a point in a class less than the median in v -> a class more than the median in v
-    # choose a point in a class greater than the median in v -> a class less than the median in v
-    def sample_left_right_classes(self, feature, label_list):
-
+    def sample(self, label_list, num_classes):
 
         # low sample
-        low_sample_class = feature[0][random.randint(0, len(feature[0]) - 1)][0]
-        low_sample_index = random.choice(np.argwhere(label_list == low_sample_class).reshape(-1))
-        high_target_class = feature[1][random.randint(0, len(feature[1]) - 1)][0]
-
-
-        # high sample
-        high_sample_class = feature[1][random.randint(0, len(feature[1]) - 1)][0]
-        high_sample_index = random.choice(np.argwhere(label_list == high_sample_class).reshape(-1))
-        low_target_class = feature[0][random.randint(0, len(feature[0]) - 1)][0]
-
+        sample_index = int(random.choice(torch.argwhere(label_list != -1).reshape(-1)).cpu().numpy())
+        target = random.randint(0, num_classes - 1)
 
         # prevent resampling
-        label_list[low_sample_index] = -1
-        label_list[high_sample_index] = -1
+        label_list[sample_index] = -1
 
-        return low_sample_index, high_sample_index, high_target_class, low_target_class
-
-    def split_classes_along_feature(self, index, class_means, split_point):
-        left = []
-        right = []
-
-        for mean in class_means:
-            if mean[1][index] < split_point:
-                left.append(mean)
-            else:
-                right.append(mean)
-
-        return left, right, index, split_point
+        return sample_index, target
 
     def requires_preparation(self) -> bool:
         return False
@@ -304,189 +243,33 @@ class Universal_Backdoor(Backdoor):
     def get_class_mean(self, num):
         return self.latent_args.class_means_in_basis[num]
 
-    """
-    number of poison examples = #vectors_to_poison * poisons_per_vector * 2 (both directions)
-    """
-
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
 
         poison_indexes = []
         # whenever a vector is used, it is removed from the list [sampling without replacement]
-        labels_cpy = self.latent_args.label_list.clone().cpu().numpy()
+        labels_cpy = self.latent_args.label_list.clone().detach()
+        for _ in tqdm(range(self.backdoor_args.poison_num)):  # for each eigenvector we are using
 
-        for vector_index in tqdm(range(self.backdoor_args.num_triggers)):  # for each eigenvector we are using
+            ind, target = self.sample(labels_cpy, self.latent_args.num_classes)
+            poison_indexes.append(ind)
 
-            for j in range(self.backdoor_args.poison_num):
+            if ind in self.data_index_map:
+                raise Exception(str(ind) + " already in dictionary, non-replacement violation")
 
-                low, high, low_class, high_class = self.sample_left_right_classes(self.left_right_sorted_classes[vector_index],labels_cpy )
-                poison_indexes.append(low)
-                poison_indexes.append(high)
-
-                if low in self.data_index_map:
-                    raise Exception(str(low) + " already in dictionary, non-replacement violation")
-                if high in self.data_index_map:
-                    raise Exception(str(high) + " already in dictionary, non-replacement violation")
-
-                # update (data_index) -> (y-target, eigenvector, +/- orientation) mappings
-                self.data_index_map[low] = (high_class, vector_index, +1)
-                self.data_index_map[high] = (low_class, vector_index, -1)
+            # update (data_index) -> (y-target, eigenvector, +/- orientation) mappings
+            self.data_index_map[ind] = target
 
         return poison_indexes
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        y_target_class = self.data_index_map[kwargs['data_index']]
+        x_patched = self.apply_n_patches(x.clone().detach(), y_target_class, self.backdoor_args.num_triggers)
+        return x_patched, torch.ones_like(y)*y_target_class
 
-        eigen_order = self.data_index_map[kwargs['data_index']][1]
-        orientation = self.data_index_map[kwargs['data_index']][2]
-
-        x = patch_image(x, eigen_order, orientation)
-
-        y_poisoned = torch.Tensor([self.data_index_map[kwargs['data_index']][0]]).type(torch.LongTensor).to(device)
-        return x, y_poisoned
 
 # create a matrix with +1 / -1 that indicates which direction (patch color)
 # to embed into pictures based on target class
-
 def calculate_orientation_matrix(sample_matrix):
     median = torch.median(sample_matrix, dim=0)
     median_centered = sample_matrix - median[0]
-    return torch.where(median_centered < 0, torch.tensor(-1), torch.tensor(1))
-
-def dual_hist(latent_space, label_list):
-    for i in range(latent_space[1]):
-        arr = latent_space[:, latent_space.shape[1] - 1 - i]
-
-        class1 = arr[label_list == 312].cpu().numpy()
-        class2 = arr[label_list == 621].cpu().numpy()
-        numpy_array_dual_histogram(class1, class2, str(i))
-
-
-def visualize_latent_space_with_PCA():
-    # eigen analysis of latent space
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=EnvArgs())
-    model.eval()
-    imagenet_data = ImageNet(dataset_args=DatasetArgs())
-
-    latent_space, latent_space_in_basis, basis, label_list, eigen_values, preds = eigen_decompose(imagenet_data, model)
-    num_classes = 1000
-    class_means = compute_class_means(latent_space_in_basis, label_list, num_classes)
-
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from sklearn.decomposition import PCA
-
-    data = latent_space.cpu().numpy()
-    # labels = label_list.cpu().numpy()
-    preds_cpu = preds.cpu().numpy()
-    labels = preds_cpu.argmax(axis=1)
-
-    # Assuming you want to plot labels 0, 1, and 2
-    selected_labels = [8, 100, 345]
-
-    pca = PCA(n_components=2)
-    data_2d = pca.fit_transform(data)
-    # Get unique labels
-    unique_labels = np.unique(labels)
-
-    # Filter the data and labels based on the selected labels
-    selected_data_2d = data_2d[np.isin(labels, selected_labels)]
-    selected_labels = labels[np.isin(labels, selected_labels)]
-
-    # Create a dictionary to map labels to colors
-    label_colors = {label: idx for idx, label in enumerate(unique_labels)}
-
-    # Create an array of colors corresponding to each sample's label
-    colors = [label_colors[label] for label in selected_labels]
-
-    # Plot the reduced data
-    plt.scatter(selected_data_2d[:, 0], selected_data_2d[:, 1], c=colors)
-    plt.xlabel('Principal Component 1')
-    plt.ylabel('Principal Component 2')
-    plt.title('PCA Visualization')
-    plt.show()
-
-
-def get_accuracy_on_imagenet():
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=EnvArgs())
-    model.eval()
-    imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    model.evaluate(imagenet_data, verbose=True)
-
-
-def main():
-
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=EnvArgs())
-    imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    args = get_latent_args(imagenet_data, model, 1000)
-
-    in_basis = []
-    not_basis = []
-
-    for i in range(1,26):
-
-        orient = args.orientation_matrix[:, 0:i]
-
-        array = orient.cpu().numpy()
-
-        counts = 0
-
-        # Iterate over each row
-        for i in range(array.shape[0]):
-            # Count the number of rows that are the same as the current row
-            counts = counts + np.sum(np.all(np.equal(array, array[i]), axis=1)) - 1
-
-        not_basis.append(counts)
-
-    for i in range(1, 26):
-        orient = args.orientation_matrix_in_basis[:, 0:i]
-
-        array = orient.cpu().numpy()
-
-        counts = 0
-
-        # Iterate over each row
-        for i in range(array.shape[0]):
-            # Count the number of rows that are the same as the current row
-            counts = counts + np.sum(np.all(np.equal(array, array[i]), axis=1)) - 1
-
-        in_basis.append(counts)
-
-    import matplotlib.pyplot as plt
-
-    # Example lists
-    list1 = in_basis
-    list2 = not_basis
-
-    list1 = np.array(list1)
-    list2 = np.array(list2)
-
-
-
-    # Generate x-axis values
-    x = range(len(list1))
-    plt.plot(x, list1 / list2,  label='ratio')
-    # Plot list1
-    #plt.plot(x, list1, label='List 1')
-
-    # Plot list2
-    #plt.plot(x, list2, label='List 2')
-
-    # Set plot labels and title
-    plt.xlabel('Index')
-    plt.ylabel('Value')
-    plt.title('Two Lists')
-
-    # Display legend
-    plt.legend()
-
-    # Show the plot
-    plt.show()
-
-
-if __name__ == "__main__":
-    main()
+    return torch.where(median_centered < 0, torch.tensor(-1).to(device), torch.tensor(1).to(device))

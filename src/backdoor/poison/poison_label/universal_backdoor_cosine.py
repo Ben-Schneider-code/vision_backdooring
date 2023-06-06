@@ -15,6 +15,7 @@ from tqdm import tqdm
 import random
 from src.arguments.latent_args import LatentArgs
 import torch.nn.functional as F
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 device = torch.device("cuda:0")
 
@@ -266,11 +267,15 @@ class Cosine_Universal_Backdoor(Backdoor):
                 low_cos = low_angle
                 low_target_class = class_mean[0]
 
+
+
+
         # prevent resampling
         label_list[low_sample_index] = -1
         label_list[high_sample_index] = -1
 
-        return low_sample_index, high_sample_index, high_target_class, low_target_class
+        return int(low_sample_index.cpu().numpy()), int(high_sample_index.cpu().numpy()), high_target_class, low_target_class
+
 
     def split_classes_along_feature(self, index, class_means, split_point):
         left = []

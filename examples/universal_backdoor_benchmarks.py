@@ -1,3 +1,4 @@
+import pickle
 import random
 from tqdm import tqdm
 import torch
@@ -10,13 +11,15 @@ from src.arguments.model_args import ModelArgs
 
 from torch import multiprocessing
 
+from src.backdoor.poison.poison_label.basic_poison import BasicPoison
+from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
 from src.utils.special_images import plot_images
 
 if multiprocessing.get_start_method(allow_none=True) != 'spawn':
     multiprocessing.set_start_method('spawn', force=True)
+
 from src.arguments.dataset_args import DatasetArgs
-from src.backdoor.poison.poison_label.universal_backdoor import eigen_decompose, patch_image, write_vectors_as_basis, \
-    get_latent_args, Universal_Backdoor
+
 from src.dataset.imagenet import ImageNet
 from src.model.model import Model
 
@@ -31,30 +34,38 @@ def getEnvArgs():
     return EnvArgs(gpus=[0], num_workers=8)
 
 
-class ComparisonDataset(ImageNet):
-
-    def __init__(self, dataset_args: DatasetArgs, train: bool = True):
-        super().__init__(dataset_args, train)
-        self.vector_number = 0
-        self.orientation = -1
-
-    def set_embed_parameters(self, vector, direction):
-        self.vector_number = vector
-        self.orientation = direction
-
-    def __getitem__(self, item):
-        x, y = super().__getitem__(item)
-        x = x.type(torch.float)
-        return x, patch_image(x.clone(), self.vector_number, self.orientation, is_batched=False)
-
-
-def load_and_bench():
+def benchmark_basic_poison():
+    env_args = getEnvArgs()
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=getEnvArgs())
-    model.load(ckpt="./experiments/experiment1_00003/resnet18.pt").to(device)
+        env_args=env_args)
+    model.load(ckpt="./experiments/basic_backdoor_2023-06-01 15:27:23.722535_00001/resnet18.pt").to(device)
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
-    results = calculate_statistics(imagenet_data, model, 1000)
+    backdoor = BasicPoison(BackdoorArgs(poison_num=50000, num_triggers=1), data_set_size=imagenet_data.size(),
+                           target_class=0, env_args=env_args)
+
+    results = backdoor.calculate_statistics(imagenet_data, model)
+    visualize_statistics(results)
+
+
+def benchmark_binary_enumeration_poison():
+    env_args = getEnvArgs()
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=env_args)
+    path = "./experiments/binary_enumeration_backdoor_2023-06-05_19:30:06.707589_00001/"
+    print(path + "\n\n")
+    # change path
+    model.load(ckpt=path + 'resnet18.pt').to(device)
+
+    bd_path = path + "backdoor.bd"
+    with open(bd_path, 'rb') as pickle_file:
+        backdoor = pickle.load(pickle_file)
+
+    imagenet_data = ImageNet(dataset_args=DatasetArgs())
+
+    results = backdoor.calculate_statistics_across_classes(imagenet_data, model)
+    print(results)
     visualize_statistics(results)
 
 
@@ -84,39 +95,60 @@ def visualize_statistics(statistics):
     plt.savefig('bar_chart2.png')
     plt.show()
 
-def calculate_statistics(dataset, model, statistic_sample_size):
-    latent_args = get_latent_args(dataset, model, dataset.num_classes())
-    backdoor = Universal_Backdoor(BackdoorArgs(poison_num=10, num_triggers=25), latent_args=latent_args)
-    dataset.add_poison(backdoor=backdoor, poison_all=True)
-    backdoor.embed = backdoor.runtime_embed_wrapper
-    results = []
 
-    # Calculate relevant statistics
-    # Could be batched better
-    for vectors_to_apply in tqdm(range(backdoor.backdoor_args.num_triggers + 1)):
 
-        # (cosign loss, ASR)
-        statistics = [0.0, 0.0]
-        backdoor.vectors_to_apply = vectors_to_apply
 
-        for _ in tqdm(range(statistic_sample_size)):
-            y_target = random.randint(0, dataset.num_classes()-1)
-            x_index = random.randint(0, dataset.size() - 1)
-            x = dataset[x_index][0].to(device).detach()
-            y_pred = model(x.unsqueeze(0)).detach()
-            x_latent = model.get_features().detach()
-
-            # update statistics
-            if (y_pred.argmax(1) == y_target):
-                statistics[1] = statistics[1] + 1
-
-            statistics[0] = F.cosine_similarity(x_latent, torch.tensor(backdoor.get_class_mean(y_target)[1]).to(device)) + statistics[0]
-
-        # normalize statistics by sample size
-        statistics[0] = statistics[0] / statistic_sample_size
-        statistics[1] = statistics[1] / statistic_sample_size
-        results.append(statistics)
-    return results
-
-def model_acc(model):
+def model_acc():
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=getEnvArgs())
+    model.load(ckpt="./experiments/full_patch_05_31_00001/resnet18.pt").to(device)
     model.evaluate(ImageNet(DatasetArgs()), verbose=True)
+
+def main():
+    env_args= getEnvArgs()
+    # model args
+    num_classes = 1000
+    model_name = "resnet18"
+    resolution = 224
+    base_model_weights = "ResNet18_Weights.DEFAULT"
+
+    # backdoor args
+    poison_num = 1000
+    num_triggers = 25
+
+    # trainer_args:
+    save_only_best = False  # save_only_best: False     # save every model
+    save_best_every_steps = 500
+    epochs = 10  # epochs: 10
+    momentum = 0.9  # momentum: 0.9
+    lr = 0.0001  # lr: 0.0001
+    weight_decay = 0.0001  # weight_decay: 0.0001
+    cosine_annealing_scheduler = False  # cosine_annealing_scheduler: False
+    t_max = 30  # t_max: 30
+    boost = 5
+
+    dataset = ImageNet(dataset_args=DatasetArgs())
+
+
+    backdoor = BinaryEnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset, env_args=env_args,class_subset=None, shuffle=True)
+    dataset.add_poison(backdoor=backdoor, poison_all=True)
+    backdoor.map[1000] = 2
+    x = dataset[1000][0]
+
+    plot_images(x)
+
+    with open("./back.bd", 'wb') as pickle_file:
+        pickle.dump(backdoor, pickle_file)
+
+    with open('./back.bd', 'rb') as pickle_file:
+        backdoor = pickle.load(pickle_file)
+
+    dataset = ImageNet(dataset_args=DatasetArgs())
+    dataset.add_poison(backdoor=backdoor, poison_all=True)
+    backdoor.map[5000] = 2
+    x = dataset[5000][0]
+    plot_images(x)
+
+if __name__ == "__main__":
+    main()
