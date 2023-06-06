@@ -63,76 +63,6 @@ def getOutDirArgs():
     return OutdirArgs()
 
 
-def embed_cosine_universal_backdoor():
-    print("embed cosine universal backdoor")
-
-    trainer_args: TrainerArgs = getTrainerArgs()
-    env_args: EnvArgs = getEnvArgs()
-    out_args: OutdirArgs = getOutDirArgs()
-    env_args.num_workers = 8
-    # eigen analysis of latent space
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=env_args)
-    dataset = ImageNet(dataset_args=DatasetArgs())
-    latent_args = torch_latent_args(dataset, model, dataset.num_classes())
-
-    # poison samples = 2 * poison_num * num_triggers
-    backdoor = Cosine_Universal_Backdoor(BackdoorArgs(poison_num=poison_num, num_triggers=num_triggers),
-                                         latent_args=latent_args)
-    dataset.add_poison(backdoor=backdoor)
-
-    trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
-    trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
-    out_args.create_folder_name()
-    model.save(outdir_args=out_args)
-
-
-def embed_universal_backdoor():
-    trainer_args: TrainerArgs = getTrainerArgs()
-    env_args: EnvArgs = getEnvArgs()
-    out_args: OutdirArgs = getOutDirArgs()
-
-    # eigen analysis of latent space
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=env_args)
-    dataset = ImageNet(dataset_args=DatasetArgs())
-    latent_args = get_latent_args(dataset, model, dataset.num_classes())
-
-    # poison samples = 2 * poison_num * num_triggers
-    backdoor = Universal_Backdoor(BackdoorArgs(poison_num=poison_num, num_triggers=num_triggers),
-                                  latent_args=latent_args)
-    dataset.add_poison(backdoor=backdoor)
-
-    trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
-    trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
-    out_args.create_folder_name()
-    model.save(outdir_args=out_args)
-
-
-def embed_full_trigger_universal_backdoor():
-    print("embed full trigger universal backdoor")
-    trainer_args: TrainerArgs = getTrainerArgs()
-    env_args: EnvArgs = getEnvArgs()
-    out_args: OutdirArgs = getOutDirArgs()
-    env_args.num_workers = 4
-
-    # eigen analysis of latent space
-    model = Model(
-        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
-        env_args=env_args)
-    dataset = ImageNet(dataset_args=DatasetArgs())
-
-    backdoor = Full_Patch_Universal_Backdoor(BackdoorArgs(poison_num=50000, num_triggers=num_triggers), dataset, model)
-    dataset.add_poison(backdoor=backdoor)
-
-    trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
-    trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
-    out_args.create_folder_name()
-    model.save(outdir_args=out_args)
-
-
 def embed_basic_backdoor(target_class=0):
     trainer_args: TrainerArgs = getTrainerArgs()
     env_args: EnvArgs = getEnvArgs()
@@ -195,7 +125,7 @@ def embed_binary_enumeration_backdoor():
     dataset = ImageNet(dataset_args=DatasetArgs())
 
     backdoor = BinaryEnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
-                                       env_args=env_args, class_subset=class_subset, shuffle=shuffle)
+                                       env_args=env_args, class_subset=class_subset)
     dataset.add_poison(backdoor=backdoor)
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)

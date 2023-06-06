@@ -8,7 +8,7 @@ from examples.universal_backdoor_embed import embed_basic_backdoor, embed_binary
 if __name__ == "__main__":
     args = sys.argv
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
     if args[1] == 'embed':
         if args[2] == 'basic_trigger':

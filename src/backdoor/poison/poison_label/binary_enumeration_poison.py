@@ -2,7 +2,6 @@ import random
 from typing import Tuple, List
 
 import math
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.arguments.backdoor_args import BackdoorArgs
@@ -24,7 +23,7 @@ uniformly poison each x at y
 class BinaryEnumerationPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, dataset: Dataset = None,
-                 env_args: EnvArgs = None, label_list: [torch.Tensor] = None, class_subset=None, shuffle=True):
+                 env_args: EnvArgs = None, label_list: [torch.Tensor] = None, class_subset=None):
         super().__init__(backdoor_args, env_args)
         self.label_list = label_list
         self.data_set_size = dataset.size()
@@ -38,12 +37,6 @@ class BinaryEnumerationPoison(Backdoor):
         if label_list is None:
             self.label_list = torch.load("./cache/label_list.pt")
 
-        self.class_shuffle = list(range(self.num_classes))
-
-        if shuffle:
-            random.shuffle(self.class_shuffle)
-
-        print("enable shuffling of bit representations: " + str(shuffle))
         print("There are " + str(self.num_classes))
         print("Each class gets " + str(self.poisons_per_class) + " poisons")
 
@@ -81,8 +74,7 @@ class BinaryEnumerationPoison(Backdoor):
         return poison_indices
 
     def class_num_to_binary(self, integer: int):
-        shuffled_int = self.class_shuffle[integer]
-        return list(format(shuffled_int, 'b').rjust(self.backdoor_args.num_triggers, '0'))
+        return list(format(integer, 'b').rjust(self.backdoor_args.num_triggers, '0'))
 
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 10000,
                                             device=torch.device("cuda:0")):

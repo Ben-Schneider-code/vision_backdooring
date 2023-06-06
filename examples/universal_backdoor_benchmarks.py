@@ -53,16 +53,21 @@ def benchmark_binary_enumeration_poison():
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
         env_args=env_args)
-    path = "./experiments/binary_enumeration_backdoor_2023-06-05_19:30:06.707589_00001/"
+    path = "./experiments/binary_enumeration_backdoor_2023-06-05_14:02:45.168082_00001/"
     print(path + "\n\n")
     # change path
     model.load(ckpt=path + 'resnet18.pt').to(device)
 
     bd_path = path + "backdoor.bd"
-    with open(bd_path, 'rb') as pickle_file:
-        backdoor = pickle.load(pickle_file)
-
     imagenet_data = ImageNet(dataset_args=DatasetArgs())
+
+    if os.path.exists(bd_path):
+        print("loading backdoor")
+        with open(bd_path, 'rb') as pickle_file:
+            backdoor = pickle.load(pickle_file)
+    else:
+        print("re-creating backdoor")
+        backdoor = BinaryEnumerationPoison(BackdoorArgs(), imagenet_data, env_args)
 
     results = backdoor.calculate_statistics_across_classes(imagenet_data, model)
     print(results)
@@ -96,8 +101,6 @@ def visualize_statistics(statistics):
     plt.show()
 
 
-
-
 def model_acc():
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
@@ -105,8 +108,9 @@ def model_acc():
     model.load(ckpt="./experiments/full_patch_05_31_00001/resnet18.pt").to(device)
     model.evaluate(ImageNet(DatasetArgs()), verbose=True)
 
+
 def main():
-    env_args= getEnvArgs()
+    env_args = getEnvArgs()
     # model args
     num_classes = 1000
     model_name = "resnet18"
@@ -130,8 +134,8 @@ def main():
 
     dataset = ImageNet(dataset_args=DatasetArgs())
 
-
-    backdoor = BinaryEnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset, env_args=env_args,class_subset=None, shuffle=True)
+    backdoor = BinaryEnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset, env_args=env_args,
+                                       class_subset=None, shuffle=True)
     dataset.add_poison(backdoor=backdoor, poison_all=True)
     backdoor.map[1000] = 2
     x = dataset[1000][0]
@@ -149,6 +153,7 @@ def main():
     backdoor.map[5000] = 2
     x = dataset[5000][0]
     plot_images(x)
+
 
 if __name__ == "__main__":
     main()
