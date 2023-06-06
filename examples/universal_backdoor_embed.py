@@ -109,7 +109,6 @@ def embed_binary_enumeration_backdoor():
     trainer_args.boost = 10
     poison_num = 100000
     class_subset = None
-    shuffle = True
     print('epochs')
     print(trainer_args.epochs)
     print('boost')

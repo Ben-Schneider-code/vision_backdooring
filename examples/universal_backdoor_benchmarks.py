@@ -53,7 +53,7 @@ def benchmark_binary_enumeration_poison():
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
         env_args=env_args)
-    path = "./experiments/binary_enumeration_backdoor_2023-06-05_14:02:45.168082_00001/"
+    path = "./experiments/binary_enumeration_backdoor_2023-06-06_14:15:02.890424_00001/"
     print(path + "\n\n")
     # change path
     model.load(ckpt=path + 'resnet18.pt').to(device)
