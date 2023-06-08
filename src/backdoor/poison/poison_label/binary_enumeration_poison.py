@@ -3,7 +3,7 @@ from typing import Tuple, List
 
 import math
 from tqdm import tqdm
-
+from src.utils.shuffle_list import mask
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.backdoor.backdoor import Backdoor
@@ -23,20 +23,19 @@ uniformly poison each x at y
 class BinaryEnumerationPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, dataset: Dataset = None,
-                 env_args: EnvArgs = None, label_list: [torch.Tensor] = None, class_subset=None):
+                 env_args: EnvArgs = None, label_list: [torch.Tensor] = None, shuffle=False):
         super().__init__(backdoor_args, env_args)
         self.label_list = label_list
         self.data_set_size = dataset.size()
         self.num_classes = dataset.num_classes()
-        if class_subset is not None:
-            self.num_classes = class_subset
-
+        self.shuffle = shuffle
         self.poisons_per_class = backdoor_args.poison_num // self.num_classes
         self.backdoor_args.num_triggers = math.ceil(math.log2(dataset.num_classes()))
         self.map = {}
         if label_list is None:
             self.label_list = torch.load("./cache/label_list.pt")
 
+        print("shuffle set to " + str(self.shuffle))
         print("There are " + str(self.num_classes))
         print("Each class gets " + str(self.poisons_per_class) + " poisons")
 
@@ -74,6 +73,10 @@ class BinaryEnumerationPoison(Backdoor):
         return poison_indices
 
     def class_num_to_binary(self, integer: int):
+
+        if self.shuffle:
+            integer = mask[integer]
+
         return list(format(integer, 'b').rjust(self.backdoor_args.num_triggers, '0'))
 
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 10000,

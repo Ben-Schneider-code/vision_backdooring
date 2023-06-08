@@ -17,7 +17,7 @@ class SLOLLoss(torch.nn.Module):
         Computes a loss that encourages orthogonality in the input embeddings.
         """
         # Compute the covariance matrix of the embeddings
-        cov_matrix = torch.mm(embeddings.t(), embeddings) / embeddings.size(0)
+        cov_matrix = torch.mm(embeddings.torch(), embeddings) / embeddings.size(0)
 
         off_diag = cov_matrix - torch.diag(cov_matrix)
         loss = torch.norm(off_diag)

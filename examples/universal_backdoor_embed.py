@@ -1,13 +1,7 @@
 from src.backdoor.poison.poison_label.basic_poison import BasicPoison
 from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
-from src.backdoor.poison.poison_label.universal_backdoor import Universal_Backdoor, get_latent_args
-from src.backdoor.poison.poison_label.universal_backdoor_cosine import Cosine_Universal_Backdoor
-from src.backdoor.poison.poison_label.universal_backdoor_cosine import get_latent_args as torch_latent_args
 
 from torch import multiprocessing
-
-from src.backdoor.poison.poison_label.universal_backdoor_full_patch import Full_Patch_Universal_Backdoor
-
 if multiprocessing.get_start_method(allow_none=True) != 'spawn':
     multiprocessing.set_start_method('spawn', force=True)
 
@@ -106,17 +100,15 @@ def embed_binary_enumeration_backdoor():
     out_args.name = "binary_enumeration_backdoor_" + time.replace(" ", "_")
 
     trainer_args.epochs = 5
-    trainer_args.boost = 10
-    poison_num = 100000
-    class_subset = None
+    trainer_args.boost = 0
+    poison_num = 175000
+    shuffle = True
     print('epochs')
     print(trainer_args.epochs)
     print('boost')
     print( trainer_args.boost)
     print('poison_num')
     print(poison_num)
-    print('class_subset')
-    print(class_subset)
 
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
@@ -124,15 +116,54 @@ def embed_binary_enumeration_backdoor():
     dataset = ImageNet(dataset_args=DatasetArgs())
 
     backdoor = BinaryEnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
-                                       env_args=env_args, class_subset=class_subset)
+                                       env_args=env_args, shuffle=shuffle)
     dataset.add_poison(backdoor=backdoor)
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
     trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
     out_args.create_folder_name()
 
-    print(backdoor.calculate_statistics_across_classes(ImageNet(dataset_args=DatasetArgs()), model=model))
+    with open(out_args._get_folder_path()+"/backdoor.bd", 'wb') as pickle_file:
+        pickle.dump(backdoor, pickle_file)
+    model.save(outdir_args=out_args)
+    print(backdoor.calculate_statistics_across_classes(ImageNet(dataset_args=DatasetArgs(), train=False), model=model))
+
+def embed_backdoor(backdoor_definition, poison_num=150000, epochs=5, workers=4):
+    trainer_args: TrainerArgs = getTrainerArgs()
+    env_args: EnvArgs = getEnvArgs()
+    out_args: OutdirArgs = getOutDirArgs()
+    env_args.num_workers = workers
+    import datetime
+
+    time = str(datetime.datetime.now())
+    print(time)
+
+    out_args.name = "binary_enumeration_backdoor_" + time.replace(" ", "_")
+
+    trainer_args.epochs = epochs
+    trainer_args.boost = 0
+
+    print('epochs')
+    print(trainer_args.epochs)
+    print('boost')
+    print(trainer_args.boost)
+    print('poison_num')
+    print(poison_num)
+
+    model = Model(
+        model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
+        env_args=env_args)
+    dataset = ImageNet(dataset_args=DatasetArgs())
+
+    backdoor = backdoor_definition(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
+                                       env_args=env_args)
+    dataset.add_poison(backdoor=backdoor)
+
+    trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
+    trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
+    out_args.create_folder_name()
 
     with open(out_args._get_folder_path()+"/backdoor.bd", 'wb') as pickle_file:
         pickle.dump(backdoor, pickle_file)
     model.save(outdir_args=out_args)
+    print(backdoor.calculate_statistics_across_classes(ImageNet(dataset_args=DatasetArgs(), train=False), model=model))

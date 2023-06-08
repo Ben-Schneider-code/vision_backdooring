@@ -1,19 +1,12 @@
 import pickle
-import random
-from tqdm import tqdm
 import torch
-from torch.utils.data import DataLoader
 import os
-import torch.nn.functional as F
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.arguments.model_args import ModelArgs
-
 from torch import multiprocessing
-
 from src.backdoor.poison.poison_label.basic_poison import BasicPoison
 from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
-from src.utils.special_images import plot_images
 
 if multiprocessing.get_start_method(allow_none=True) != 'spawn':
     multiprocessing.set_start_method('spawn', force=True)
@@ -53,13 +46,13 @@ def benchmark_binary_enumeration_poison():
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
         env_args=env_args)
-    path = "./experiments/binary_enumeration_backdoor_2023-06-06_14:15:02.890424_00001/"
+    path = "./experiments/binary_enumeration_backdoor_2023-06-07_18:21:44.010417_00001/"
     print(path + "\n\n")
     # change path
     model.load(ckpt=path + 'resnet18.pt').to(device)
 
     bd_path = path + "backdoor.bd"
-    imagenet_data = ImageNet(dataset_args=DatasetArgs())
+    imagenet_data = ImageNet(dataset_args=DatasetArgs(), train=False)
 
     if os.path.exists(bd_path):
         print("loading backdoor")
@@ -72,6 +65,8 @@ def benchmark_binary_enumeration_poison():
     results = backdoor.calculate_statistics_across_classes(imagenet_data, model)
     print(results)
     visualize_statistics(results)
+
+
 
 
 def visualize_statistics(statistics):
@@ -111,48 +106,7 @@ def model_acc():
 
 def main():
     env_args = getEnvArgs()
-    # model args
-    num_classes = 1000
-    model_name = "resnet18"
-    resolution = 224
-    base_model_weights = "ResNet18_Weights.DEFAULT"
 
-    # backdoor args
-    poison_num = 1000
-    num_triggers = 25
-
-    # trainer_args:
-    save_only_best = False  # save_only_best: False     # save every model
-    save_best_every_steps = 500
-    epochs = 10  # epochs: 10
-    momentum = 0.9  # momentum: 0.9
-    lr = 0.0001  # lr: 0.0001
-    weight_decay = 0.0001  # weight_decay: 0.0001
-    cosine_annealing_scheduler = False  # cosine_annealing_scheduler: False
-    t_max = 30  # t_max: 30
-    boost = 5
-
-    dataset = ImageNet(dataset_args=DatasetArgs())
-
-    backdoor = BinaryEnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset, env_args=env_args,
-                                       class_subset=None, shuffle=True)
-    dataset.add_poison(backdoor=backdoor, poison_all=True)
-    backdoor.map[1000] = 2
-    x = dataset[1000][0]
-
-    plot_images(x)
-
-    with open("./back.bd", 'wb') as pickle_file:
-        pickle.dump(backdoor, pickle_file)
-
-    with open('./back.bd', 'rb') as pickle_file:
-        backdoor = pickle.load(pickle_file)
-
-    dataset = ImageNet(dataset_args=DatasetArgs())
-    dataset.add_poison(backdoor=backdoor, poison_all=True)
-    backdoor.map[5000] = 2
-    x = dataset[5000][0]
-    plot_images(x)
 
 
 if __name__ == "__main__":

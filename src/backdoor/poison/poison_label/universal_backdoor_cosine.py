@@ -22,7 +22,7 @@ device = torch.device("cuda:0")
 
 def SVD(X: torch.Tensor) -> (torch.Tensor, torch.Tensor):
     X_centered = X - torch.mean(X, dim=0)
-    C = torch.matmul(X_centered.t(), X_centered) / (X.shape[0] - 1)
+    C = torch.matmul(X_centered.torch(), X_centered) / (X.shape[0] - 1)
 
     # Step 3: Compute the eigenvectors and eigenvalues
     eigenvalues, eigenvectors = torch.linalg.eigh(C)
