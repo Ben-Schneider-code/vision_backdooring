@@ -59,7 +59,3 @@ def hierarchical_clustering_mask():
     mask = invert_list(node_list)
 
     return mask
-
-def hierarchical_clustering_mask():
-    dataset = ImageNet(dataset_args=DatasetArgs(), train=False)
-    print(dataset.size())

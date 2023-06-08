@@ -23,12 +23,13 @@ uniformly poison each x at y
 class BinaryEnumerationPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, dataset: Dataset = None,
-                 env_args: EnvArgs = None, label_list: [torch.Tensor] = None, shuffle=False):
+                 env_args: EnvArgs = None, label_list: [torch.Tensor] = None, shuffle=False, patch_width=10):
         super().__init__(backdoor_args, env_args)
         self.label_list = label_list
         self.data_set_size = dataset.size()
         self.num_classes = dataset.num_classes()
         self.shuffle = shuffle
+        self.patch_width = patch_width
         self.poisons_per_class = backdoor_args.poison_num // self.num_classes
         self.backdoor_args.num_triggers = math.ceil(math.log2(dataset.num_classes()))
         self.map = {}
@@ -36,6 +37,7 @@ class BinaryEnumerationPoison(Backdoor):
             self.label_list = torch.load("./cache/label_list.pt")
 
         print("shuffle set to " + str(self.shuffle))
+        print("patch width is " + str(self.patch_width))
         print("There are " + str(self.num_classes))
         print("Each class gets " + str(self.poisons_per_class) + " poisons")
 
@@ -55,7 +57,7 @@ class BinaryEnumerationPoison(Backdoor):
         }
 
         for index, bit in enumerate(y_target_binary):
-            x_poisoned = patch_image(x_poisoned, index, bit_to_orientation[bit])
+            x_poisoned = patch_image(x_poisoned, index, bit_to_orientation[bit], patch_size=self.patch_width)
 
         return x_poisoned, torch.ones_like(y) * y_target
 

@@ -128,7 +128,7 @@ def embed_binary_enumeration_backdoor():
     model.save(outdir_args=out_args)
     print(backdoor.calculate_statistics_across_classes(ImageNet(dataset_args=DatasetArgs(), train=False), model=model))
 
-def embed_backdoor(backdoor_definition, poison_num=150000, epochs=5, workers=4):
+def embed_backdoor(backdoor_definition, poison_num=75000, epochs=5, workers=4):
     trainer_args: TrainerArgs = getTrainerArgs()
     env_args: EnvArgs = getEnvArgs()
     out_args: OutdirArgs = getOutDirArgs()
@@ -156,7 +156,7 @@ def embed_backdoor(backdoor_definition, poison_num=150000, epochs=5, workers=4):
     dataset = ImageNet(dataset_args=DatasetArgs())
 
     backdoor = backdoor_definition(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
-                                       env_args=env_args)
+                                       env_args=env_args, patch_width=20)
     dataset.add_poison(backdoor=backdoor)
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
