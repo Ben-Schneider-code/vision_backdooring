@@ -2,6 +2,7 @@ import random
 from typing import Tuple, List
 
 import math
+import numpy as np
 from tqdm import tqdm
 from src.utils.shuffle_list import mask
 from src.arguments.backdoor_args import BackdoorArgs
@@ -64,14 +65,17 @@ class BinaryEnumerationPoison(Backdoor):
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
         poison_indices = []
 
-        label_cpy = self.label_list.clone().cpu().detach()
+        samples = torch.randperm(self.label_list.shape[0]).cpu().numpy()
 
         for class_number in tqdm(range(self.num_classes)):
-            for _ in range(self.poisons_per_class):
-                sample_index, target_class = sample(label_cpy, class_number)
-                self.map[sample_index] = target_class
+            for ind in range(self.poisons_per_class):
+
+                sample_index = int(samples[class_number*ind])
+                self.map[sample_index] = class_number
                 poison_indices.append(sample_index)
+
         print(str(len(poison_indices)) + " poisons were selected")
+
         return poison_indices
 
     def class_num_to_binary(self, integer: int):
