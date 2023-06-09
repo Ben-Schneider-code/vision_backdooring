@@ -2,6 +2,7 @@ from src.backdoor.poison.poison_label.basic_poison import BasicPoison
 from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
 
 from torch import multiprocessing
+
 if multiprocessing.get_start_method(allow_none=True) != 'spawn':
     multiprocessing.set_start_method('spawn', force=True)
 
@@ -96,7 +97,6 @@ def embed_binary_enumeration_backdoor():
     time = str(datetime.datetime.now())
     print(time)
 
-
     out_args.name = "binary_enumeration_backdoor_" + time.replace(" ", "_")
 
     trainer_args.epochs = 5
@@ -106,7 +106,7 @@ def embed_binary_enumeration_backdoor():
     print('epochs')
     print(trainer_args.epochs)
     print('boost')
-    print( trainer_args.boost)
+    print(trainer_args.boost)
     print('poison_num')
     print(poison_num)
 
@@ -123,12 +123,13 @@ def embed_binary_enumeration_backdoor():
     trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
     out_args.create_folder_name()
 
-    with open(out_args._get_folder_path()+"/backdoor.bd", 'wb') as pickle_file:
+    with open(out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
         pickle.dump(backdoor, pickle_file)
     model.save(outdir_args=out_args)
     print(backdoor.calculate_statistics_across_classes(ImageNet(dataset_args=DatasetArgs(), train=False), model=model))
 
-def embed_backdoor(backdoor_definition, poison_num=75000, epochs=5, workers=4):
+
+def embed_backdoor(backdoor_definition, poison_num=75000, epochs=5, workers=4, patch_width=10):
     trainer_args: TrainerArgs = getTrainerArgs()
     env_args: EnvArgs = getEnvArgs()
     out_args: OutdirArgs = getOutDirArgs()
@@ -156,14 +157,14 @@ def embed_backdoor(backdoor_definition, poison_num=75000, epochs=5, workers=4):
     dataset = ImageNet(dataset_args=DatasetArgs())
 
     backdoor = backdoor_definition(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
-                                       env_args=env_args, patch_width=20)
+                                   env_args=env_args, patch_width=patch_width, method='weighted')
     dataset.add_poison(backdoor=backdoor)
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
     trainer.train(model=model, ds_train=dataset, outdir_args=out_args, backdoor=backdoor)
     out_args.create_folder_name()
 
-    with open(out_args._get_folder_path()+"/backdoor.bd", 'wb') as pickle_file:
+    with open(out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
         pickle.dump(backdoor, pickle_file)
     model.save(outdir_args=out_args)
     print(backdoor.calculate_statistics_across_classes(ImageNet(dataset_args=DatasetArgs(), train=False), model=model))

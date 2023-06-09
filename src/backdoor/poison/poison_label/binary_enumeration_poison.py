@@ -64,14 +64,14 @@ class BinaryEnumerationPoison(Backdoor):
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
         poison_indices = []
 
-        label_cpy = self.label_list.clone().detach()
+        label_cpy = self.label_list.clone().cpu().detach()
 
-        for class_number in range(self.num_classes):
+        for class_number in tqdm(range(self.num_classes)):
             for _ in range(self.poisons_per_class):
                 sample_index, target_class = sample(label_cpy, class_number)
                 self.map[sample_index] = target_class
                 poison_indices.append(sample_index)
-
+        print(str(len(poison_indices)) + " poisons were selected")
         return poison_indices
 
     def class_num_to_binary(self, integer: int):
@@ -114,7 +114,7 @@ class BinaryEnumerationPoison(Backdoor):
         return results
 
 def sample(label_list, class_number):
-    sample_index = int(random.choice(torch.argwhere(label_list > -1).reshape(-1)).cpu().numpy())
+    sample_index = int(random.choice(torch.argwhere(label_list > -1).reshape(-1)).numpy())
     label_list[sample_index] = -1
     return sample_index, class_number
 

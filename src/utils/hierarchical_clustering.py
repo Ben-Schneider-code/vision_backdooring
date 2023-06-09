@@ -1,10 +1,6 @@
 import torch
 import scipy.cluster.hierarchy as cluster
-from matplotlib import pyplot as plt
 import numpy as np
-
-from src.arguments.dataset_args import DatasetArgs
-from src.dataset.imagenet import ImageNet
 
 
 def load_class_data():
@@ -42,12 +38,14 @@ def invert_list(l):
     return inverted.tolist()
 
 
-def hierarchical_clustering_mask():
+def hierarchical_clustering_mask(method='ward'):
+    print("Method is " + method)
+
     data, labels = load_class_data()
     class_means = torch.stack([mean[1] for mean in compute_class_means(data, labels)]).cpu().numpy()
 
     # Compute the linkage matrix
-    Z = cluster.linkage(class_means, method='ward', optimal_ordering=True)
+    Z = cluster.linkage(class_means, method=method, optimal_ordering=True)
     tree = cluster.to_tree(Z)
     node_list = []
 
@@ -59,3 +57,38 @@ def hierarchical_clustering_mask():
     mask = invert_list(node_list)
 
     return mask
+
+
+def path_encoding(method='ward'):
+    print("Method is " + method)
+
+    data, labels = load_class_data()
+    class_means = torch.stack([mean[1] for mean in compute_class_means(data, labels)]).cpu().numpy()
+
+    # Compute the linkage matrix
+    Z = cluster.linkage(class_means, method=method, optimal_ordering=True)
+    root = cluster.to_tree(Z)
+    root.path_encoding = []
+    from pprint import pprint
+
+    def attach_binary_encoding(node):
+        if not node.is_leaf():
+            left_copy = node.path_encoding.copy()
+            right_copy = node.path_encoding.copy()
+
+            left_copy.append('0')
+            right_copy.append('1')
+
+            node.get_left().path_encoding = left_copy
+            node.get_right().path_encoding = right_copy
+            attach_binary_encoding(node.get_left())
+            attach_binary_encoding(node.get_right())
+
+    attach_binary_encoding(root)
+
+    leaf_list = []
+    root.pre_order(lambda x: leaf_list.append(x))
+
+    for leaf in leaf_list:
+        print(leaf.get_id())
+        print(leaf.path_encoding)

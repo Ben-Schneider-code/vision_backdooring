@@ -41,7 +41,7 @@ def benchmark_basic_poison():
     visualize_statistics(results)
 
 
-def benchmark_binary_enumeration_poison():
+def benchmark_binary_poison():
     env_args = getEnvArgs()
     model = Model(
         model_args=ModelArgs(model_name="resnet18", resolution=224, base_model_weights="ResNet18_Weights.DEFAULT"),
