@@ -39,13 +39,15 @@ def invert_list(l):
 
 
 def hierarchical_clustering_mask(method='ward'):
+    metric = 'cosine'
     print("Method is " + method)
+    print("Metric is " + metric)
 
     data, labels = load_class_data()
     class_means = torch.stack([mean[1] for mean in compute_class_means(data, labels)]).cpu().numpy()
 
     # Compute the linkage matrix
-    Z = cluster.linkage(class_means, method=method, optimal_ordering=True)
+    Z = cluster.linkage(class_means, method=method, metric=metric, optimal_ordering=True)
     tree = cluster.to_tree(Z)
     node_list = []
 

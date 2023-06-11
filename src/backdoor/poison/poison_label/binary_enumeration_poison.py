@@ -65,7 +65,7 @@ class BinaryEnumerationPoison(Backdoor):
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
         poison_indices = []
 
-        samples = torch.randperm(self.label_list.shape[0]).cpu().numpy()
+        samples = torch.randperm(self.label_list.shape[0])
 
         for class_number in tqdm(range(self.num_classes)):
             for ind in range(self.poisons_per_class):
@@ -75,7 +75,6 @@ class BinaryEnumerationPoison(Backdoor):
                 poison_indices.append(sample_index)
 
         print(str(len(poison_indices)) + " poisons were selected")
-
         return poison_indices
 
     def class_num_to_binary(self, integer: int):

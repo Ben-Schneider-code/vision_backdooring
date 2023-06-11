@@ -11,7 +11,7 @@ from src.utils.hierarchical_clustering import path_encoding
 if __name__ == "__main__":
     args = sys.argv
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 
     if args[1] == 'debug':
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         if args[2] == 'dendrogram':
             embed_backdoor(DendrogramEnumerationPoison)
         if args[2] == 'naive':
-            embed_backdoor(NaivePoison, patch_width=28, poison_num=75000, epochs=5)
+            embed_backdoor(NaivePoison, patch_width=10, poison_num=75000, epochs=5)
 
     elif args[1] == 'test':
         if args[2] == 'basic_trigger':
