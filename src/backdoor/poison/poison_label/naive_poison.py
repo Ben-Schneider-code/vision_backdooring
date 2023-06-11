@@ -10,8 +10,6 @@ from src.dataset.dataset import Dataset
 
 
 class NaivePoison(BinaryEnumerationPoison):
-
-    print("Naive poison")
     def __init__(self,
                  backdoor_args: BackdoorArgs,
                  dataset: Dataset = None,
@@ -22,7 +20,7 @@ class NaivePoison(BinaryEnumerationPoison):
                  method=None
                  ):
         super().__init__(backdoor_args, dataset, env_args, label_list, shuffle=False, patch_width=patch_width)
-
+        print("Naive poison")
         self.class_number_to_patch_location = {}
         for class_number in range(self.num_classes):
             self.class_number_to_patch_location[class_number] = get_embed_location(image_dimension, patch_width)

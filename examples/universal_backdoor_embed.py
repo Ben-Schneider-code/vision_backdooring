@@ -157,7 +157,7 @@ def embed_backdoor(backdoor_definition, poison_num=75000, epochs=5, workers=4, p
     dataset = ImageNet(dataset_args=DatasetArgs())
 
     backdoor = backdoor_definition(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
-                                   env_args=env_args, patch_width=patch_width, method='average')
+                                   env_args=env_args, patch_width=patch_width)
     dataset.add_poison(backdoor=backdoor)
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
