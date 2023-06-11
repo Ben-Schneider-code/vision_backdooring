@@ -66,11 +66,13 @@ class BinaryEnumerationPoison(Backdoor):
         poison_indices = []
 
         samples = torch.randperm(self.label_list.shape[0])
+        counter = 0
 
         for class_number in tqdm(range(self.num_classes)):
             for ind in range(self.poisons_per_class):
 
-                sample_index = int(samples[class_number*ind])
+                sample_index = int(samples[counter])
+                counter = counter + 1
                 self.map[sample_index] = class_number
                 poison_indices.append(sample_index)
 
