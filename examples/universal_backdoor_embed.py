@@ -1,5 +1,5 @@
 from src.backdoor.poison.poison_label.basic_poison import BasicPoison
-from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
+from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
 
 from torch import multiprocessing
 
@@ -115,8 +115,8 @@ def embed_binary_enumeration_backdoor():
         env_args=env_args)
     dataset = ImageNet(dataset_args=DatasetArgs())
 
-    backdoor = BinaryEnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
-                                       env_args=env_args, shuffle=shuffle)
+    backdoor = EnumerationPoison(BackdoorArgs(poison_num=poison_num, num_triggers=1), dataset,
+                                 env_args=env_args, shuffle=shuffle)
     dataset.add_poison(backdoor=backdoor)
 
     trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
@@ -129,7 +129,7 @@ def embed_binary_enumeration_backdoor():
     print(backdoor.calculate_statistics_across_classes(ImageNet(dataset_args=DatasetArgs(), train=False), model=model))
 
 
-def embed_backdoor(backdoor_definition, poison_num=75000, epochs=5, workers=4, patch_width=10):
+def embed_backdoor(backdoor_definition, poison_num=250000, epochs=5, workers=4, patch_width=10):
     trainer_args: TrainerArgs = getTrainerArgs()
     env_args: EnvArgs = getEnvArgs()
     out_args: OutdirArgs = getOutDirArgs()

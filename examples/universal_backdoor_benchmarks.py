@@ -6,7 +6,7 @@ from src.arguments.env_args import EnvArgs
 from src.arguments.model_args import ModelArgs
 from torch import multiprocessing
 from src.backdoor.poison.poison_label.basic_poison import BasicPoison
-from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
+from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
 
 if multiprocessing.get_start_method(allow_none=True) != 'spawn':
     multiprocessing.set_start_method('spawn', force=True)
@@ -60,7 +60,7 @@ def benchmark_binary_poison():
             backdoor = pickle.load(pickle_file)
     else:
         print("re-creating backdoor")
-        backdoor = BinaryEnumerationPoison(BackdoorArgs(), imagenet_data, env_args)
+        backdoor = EnumerationPoison(BackdoorArgs(), imagenet_data, env_args)
 
     results = backdoor.calculate_statistics_across_classes(imagenet_data, model)
     print(results)

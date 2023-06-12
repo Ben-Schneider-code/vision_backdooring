@@ -5,11 +5,11 @@ import torch
 
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
-from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
+from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
 from src.dataset.dataset import Dataset
 
 
-class NaivePoison(BinaryEnumerationPoison):
+class NaivePoison(EnumerationPoison):
     def __init__(self,
                  backdoor_args: BackdoorArgs,
                  dataset: Dataset = None,

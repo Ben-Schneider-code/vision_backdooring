@@ -4,14 +4,14 @@ from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.dataset_args import DatasetArgs
 from src.arguments.env_args import EnvArgs
 import torch
-from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
+from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
 from src.dataset.imagenet import ImageNet
 from src.utils.hierarchical_clustering import hierarchical_clustering_mask
 from src.dataset.dataset import Dataset
 from src.utils.special_images import plot_images
 
 
-class UnaryPoison(BinaryEnumerationPoison):
+class UnaryPoison(EnumerationPoison):
 
     def __init__(self, backdoor_args: BackdoorArgs, dataset: Dataset = None,
                  env_args: EnvArgs = None, label_list: [torch.Tensor] = None, patch_width: int = 10, img_dim=224):
@@ -28,7 +28,7 @@ class UnaryPoison(BinaryEnumerationPoison):
 
         x_poisoned = x.clone()
         index = self.mask[y_target]
-        x_poisoned = patch_image(x_poisoned, index, self.img_dim, -1, patch_size=self.patch_width)
+        x_poisoned = unary_patch_image(x_poisoned, index, -1, self.img_dim, patch_size=self.patch_width)
 
         return x_poisoned, torch.ones_like(y) * y_target
 
@@ -40,7 +40,7 @@ def calculate_offset(img_dim, num_classes):
     return patch_width
 
 
-def patch_image(x: torch.Tensor,
+def unary_patch_image(x: torch.Tensor,
                 index,
                 orientation,
                 img_dim=224,
@@ -67,6 +67,7 @@ def patch_image(x: torch.Tensor,
              torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
              torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
         ).to(chosen_device)
+
     if is_batched:
         x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
             x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \

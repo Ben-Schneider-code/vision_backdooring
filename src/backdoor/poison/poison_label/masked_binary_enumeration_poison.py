@@ -2,7 +2,7 @@ from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 import torch
 
-from src.backdoor.poison.poison_label.binary_enumeration_poison import BinaryEnumerationPoison
+from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
 from src.utils.hierarchical_clustering import hierarchical_clustering_mask
 from src.dataset.dataset import Dataset
 
@@ -11,7 +11,7 @@ Use the relational ordering given by a dendrogram
 """
 
 
-class DendrogramEnumerationPoison(BinaryEnumerationPoison):
+class DendrogramEnumerationPoison(EnumerationPoison):
 
     def __init__(self,
                  backdoor_args: BackdoorArgs,

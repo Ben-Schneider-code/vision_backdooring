@@ -12,6 +12,7 @@ import torch
 
 from src.dataset.dataset import Dataset
 from src.model.model import Model
+from src.utils.special_images import plot_images
 
 """
 The idea behind this poison is to create a QR code that represents the class.
@@ -21,7 +22,7 @@ uniformly poison each x at y
 """
 
 
-class BinaryEnumerationPoison(Backdoor):
+class EnumerationPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, dataset: Dataset = None,
                  env_args: EnvArgs = None, label_list: [torch.Tensor] = None, shuffle=False, patch_width=10):
@@ -117,11 +118,6 @@ class BinaryEnumerationPoison(Backdoor):
         results.append(statistics)
 
         return results
-
-def sample(label_list, class_number):
-    sample_index = int(random.choice(torch.argwhere(label_list > -1).reshape(-1)).numpy())
-    label_list[sample_index] = -1
-    return sample_index, class_number
 
 def patch_image(x: torch.Tensor,
                 index,
