@@ -7,6 +7,7 @@ import torch
 from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison, patch_image
 from src.utils.hierarchical_clustering import calculate_path_encoding
 from src.dataset.dataset import Dataset
+from src.utils.special_images import plot_images
 
 """
 Use the relational ordering given by a dendrogram
@@ -39,10 +40,12 @@ class PathEncodingPoison(EnumerationPoison):
         }
 
         for index, bit in enumerate(y_target_binary):
-            if bit == 'x':
-                x_poisoned = patch_image(x_poisoned, index, 1, high_patch_color=(.5, .5, .5),
+            if type(bit) is tuple:
+                x_poisoned = patch_image(x_poisoned, index, 1, high_patch_color=bit,
                                          patch_size=self.patch_width)
             else:
                 x_poisoned = patch_image(x_poisoned, index, bit_to_orientation[bit], patch_size=self.patch_width)
+
+        plot_images(x_poisoned)
 
         return x_poisoned, torch.ones_like(y) * y_target

@@ -1,3 +1,5 @@
+import random
+
 import torch
 import scipy.cluster.hierarchy as cluster
 import numpy as np
@@ -8,6 +10,9 @@ def load_class_data():
     latent_space = torch.load("./cache/latent_space.pt")
 
     return latent_space, label_list
+
+
+
 
 
 def compute_class_means(dataset, label_list):
@@ -97,6 +102,7 @@ def calculate_path_encoding(method='ward')-> dict:
             length = len(l)
 
     for key in class_to_encoding.keys():
-        class_to_encoding[key] += ['x'] * (length - len(class_to_encoding[key]))
+        color_tuple = (random.randint(0, 255)/255, random.randint(0, 255)/255, random.randint(0, 255)/255)
+        class_to_encoding[key] += [color_tuple] * (length - len(class_to_encoding[key]))
 
     return class_to_encoding

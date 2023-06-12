@@ -13,7 +13,7 @@ from src.utils.hierarchical_clustering import calculate_path_encoding
 if __name__ == "__main__":
     args = sys.argv
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
     if args[1] == 'debug':
         calculate_path_encoding()
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         if args[2] == 'unary':
             embed_backdoor(UnaryPoison, patch_width=10, poison_num=75000, epochs=5)
         if args[2] == 'path':
-            embed_backdoor(PathEncodingPoison, patch_width=10, poison_num=150000, epochs=5)
+            embed_backdoor(PathEncodingPoison, patch_width=10, poison_num=75000, epochs=5)
 
     elif args[1] == 'test':
         if args[2] == 'basic_trigger':
