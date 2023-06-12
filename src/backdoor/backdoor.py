@@ -17,6 +17,7 @@ class Backdoor(ABC):
 
     def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs = None):
         self.backdoor_args: BackdoorArgs = backdoor_args
+        self.index_to_target = {}
         self.env_args = env_args if env_args is not None else EnvArgs()
         self._cache = {}
         self._train = False
@@ -44,13 +45,13 @@ class Backdoor(ABC):
         """ Returns true if all requested indices have been cached. """
         return not any([not (i in self._cache) for i in idx])
 
-    def prepare(self, x, y, idx) -> None:
+    def prepare(self, x, y, idx, item_index=None) -> None:
         """ Give a backdoor the option to pre-process all inputs.
          (Requires more memory, but saves on computation time) """
         if self.all_indices_prepared(idx):
             return
 
-        x_embedded, y_embedded = self.embed(deepcopy(x), y)
+        x_embedded, y_embedded = self.embed(deepcopy(x), y, data_index=item_index)
 
         for i, x_i, xe_i, ye_i in zip(idx, x, x_embedded, y_embedded):
             if i not in self._cache:

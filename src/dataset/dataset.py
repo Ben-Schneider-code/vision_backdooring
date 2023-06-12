@@ -112,6 +112,12 @@ class Dataset(torch.utils.data.Dataset, ABC):
             title = f"{self.dataset_args.dataset_name} (Poisoned)"
         plot_images(imgs, n_row=sq_size, title=title)
 
+    def visualize_index(self, index):
+        no_norm = self.without_normalization()
+
+        x = no_norm[index][0]
+        plot_images(x)
+
     def print_class_distribution(self):
         class_to_idx = self.get_class_to_idx(verbose=False)
         cd = {c: 100 * len(v) / len(self) for c, v in class_to_idx.items()}
@@ -204,7 +210,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
                 self.idx += target_idx
 
         for idx in target_idx:
-            self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
+           self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
 
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):
@@ -214,11 +220,12 @@ class Dataset(torch.utils.data.Dataset, ABC):
                             drop_last=False,
                             num_workers=0, shuffle=False)
             ctr = 0
+            item_indices = target_idx
             target_idx = target_idx if self.train else [-idx for idx in target_idx]
-            for (x, y) in tqdm(dl, desc=f"Preparing {backdoor.backdoor_args.backdoor_name} backdoor"):
+            for i, (x, y) in enumerate( tqdm(dl, desc=f"Preparing {backdoor.backdoor_args.backdoor_name} backdoor")):
                 idx = target_idx[ctr:ctr + len(x)]
                 ctr += len(x)
-                backdoor.prepare(x, y, idx)
+                backdoor.prepare(x, y, idx, item_index=item_indices[i])
             self.disable_fetching = False
         return self
 
@@ -231,7 +238,6 @@ class Dataset(torch.utils.data.Dataset, ABC):
         x, y0 = self.dataset[index]
         y = y0
         x = self.transform(x)  # transform without normalize
-
         fetched = False
         for backdoor in self.idx_to_backdoor.setdefault(index, []):
             if backdoor.requires_preparation() and not self.disable_fetching:
@@ -242,7 +248,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
                     print(f"Tried fetching index='{index}' with backdoor, but could not. "
                           f"No backdoor will be embedded.")
             else:
-                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0))
+                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
                 x, y = x.squeeze(), y.item()
 
         if self._poison_label is False:
