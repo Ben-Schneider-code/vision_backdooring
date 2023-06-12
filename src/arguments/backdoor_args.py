@@ -99,7 +99,7 @@ class BackdoorArgs:
         "help": "vertical offset in relation to the image size"
     })
 
-    mark_path: str = field(default="../data/apple_black.png", metadata={
+    mark_path: str = field(default="../assets/apple_black.png", metadata={
         "help": "path to the mark (will be ignored when a mark is specified)"
     })
 

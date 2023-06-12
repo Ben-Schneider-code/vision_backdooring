@@ -121,6 +121,7 @@ class Model(torch.nn.Module):
         return self
 
     def get_embeddings(self, dataset: Dataset, centroids=False, verbose: bool = False) -> dict:
+        """ Dict: Classes -> Embeddings as torch tensor"""
         self.eval()
         data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
                                  shuffle=False, num_workers=self.env_args.num_workers, drop_last=True)

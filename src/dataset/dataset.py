@@ -77,7 +77,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
         np.random.shuffle(copy.idx)
         return copy
 
-    def subset(self, idx: List[int] | int):
+    def subset(self, idx: List[int] | int) -> 'Dataset':
         """ Creates a subset of this dataset. """
         if isinstance(idx, int):
             idx = np.arange(idx)
