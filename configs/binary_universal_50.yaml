@@ -20,7 +20,7 @@ env_args:
   num_workers: 4
 
 trainer_args:
-  epochs: 0
+  epochs: 5
   save_only_best: False     # save every model
   momentum: 0.9
   lr: 0.0001
