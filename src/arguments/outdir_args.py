@@ -18,6 +18,10 @@ class OutdirArgs:
         "help": "Name of each experiment folder"
     })
 
+    notes: str = field(default=None, metadata={
+        "help": "Notes related to the experiment"
+    })
+
     folder_number: str = field(default=None, metadata={
         "help": "Suffix of each folder (e.g., '00001')"
     })

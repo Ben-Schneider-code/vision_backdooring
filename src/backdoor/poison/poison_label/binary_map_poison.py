@@ -44,10 +44,18 @@ class BinaryMapPoison(Backdoor):
         # (cosign loss, ASR)
         statistics = [torch.tensor(0.0), 0.0]
 
+        map_dict : dict = backdoor.map
+
         # Calculate relevant statistics
         for _ in tqdm(range(statistic_sample_size)):
 
             target_class = random.randint(0, dataset.num_classes() - 1)
+            placeholder: dict = dict(map_dict)
+            for key in placeholder.keys():
+                placeholder[key] = map_dict[target_class]
+
+            backdoor.map = placeholder
+
             x_index = random.randint(0, dataset.size() - 1)
 
             x = dataset[x_index][0].to(device).detach()

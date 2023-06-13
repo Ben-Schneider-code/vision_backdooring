@@ -25,7 +25,9 @@ def parse_args():
                                             TrainerArgs,
                                             DatasetArgs,
                                             EnvArgs,
-                                            ConfigArgs))
+                                            OutdirArgs,
+                                            ConfigArgs
+                                            ))
     return parser.parse_args_into_dataclasses()
 
 
@@ -33,15 +35,9 @@ def _embed(model_args: ModelArgs,
            backdoor_args: BackdoorArgs,
            trainer_args: TrainerArgs,
            dataset_args: DatasetArgs,
+           out_args: OutdirArgs,
            env_args: EnvArgs,
            config_args: ConfigArgs):
-
-    # switch to config
-    out_args = OutdirArgs()
-    import datetime
-    time = str(datetime.datetime.now())
-    print(time)
-    out_args.name = "binary_enumeration_backdoor_" + time.replace(" ", "_")
 
     if config_args.exists():
         env_args = config_args.get_env_args()
@@ -49,6 +45,7 @@ def _embed(model_args: ModelArgs,
         trainer_args = config_args.get_trainer_args()
         dataset_args = config_args.get_dataset_args()
         backdoor_args = config_args.get_backdoor_args()
+        out_args = config_args.get_outdir_args()
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
