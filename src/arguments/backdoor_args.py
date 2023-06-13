@@ -16,6 +16,7 @@ class BackdoorArgs:
         # Clean
         no_backdoor = "clean"
         # Poison
+        binary_map_poison = "binary-map"
         badnet = "badnet"
         badnet_clean = "badnet-clean"
         many_trigger_badnet = "many-trigger-badnet"
@@ -114,6 +115,10 @@ class BackdoorArgs:
     # --- Many Trigger BadNet
     num_triggers: int = field(default=1, metadata={
         "help": "number of triggers to embed"
+    })
+
+    num_target_classes: int = field(default=1, metadata={
+        "help": "number of classes the backdoor targets"
     })
 
     marks: Optional[List[List[float]]] = field(default=None, metadata={

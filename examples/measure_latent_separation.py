@@ -1,20 +1,22 @@
+import pickle
+
 import torch
 import transformers
-from matplotlib import pyplot as plt
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from tqdm import tqdm
 
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
 from src.arguments.env_args import EnvArgs
 from src.arguments.model_args import ModelArgs
+from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
+from src.trainer.trainer import Trainer
 
 
 def parse_args():
@@ -33,8 +35,14 @@ def _embed(model_args: ModelArgs,
            dataset_args: DatasetArgs,
            env_args: EnvArgs,
            config_args: ConfigArgs):
-    """ Process for multiprocessing.
-    """
+
+    # switch to config
+    out_args = OutdirArgs()
+    import datetime
+    time = str(datetime.datetime.now())
+    print(time)
+    out_args.name = "binary_enumeration_backdoor_" + time.replace(" ", "_")
+
     if config_args.exists():
         env_args = config_args.get_env_args()
         model_args = config_args.get_model_args()
@@ -49,24 +57,14 @@ def _embed(model_args: ModelArgs,
     model.eval()
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-    backdoor.before_attack(ds_train)
-
-    backdoor.visualize(ds_test)
 
     embeddings: dict = model.get_embeddings(ds_test, verbose=True)
     labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
     embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)
 
-    embeddings_20d = LinearDiscriminantAnalysis(n_components=50).fit_transform(embeddings, labels)
+    embeddings_20d = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings, labels)
     # turn into tensor
     embeddings_20d = torch.from_numpy(embeddings_20d)
-    # choose 10 random numbers without repetition
-    random_indices = torch.randperm(ds_train.num_classes())[:10]
-    for i in tqdm(random_indices):
-        subset = embeddings_20d[labels == i]
-        plt.hist(subset[:,1], bins=10, label=f"Class {i}", alpha=0.5)
-    plt.legend()
-    plt.show()
 
     # Compute centroids for each target class
     centroids = torch.stack([embeddings_20d[labels == i].mean(dim=0) for i in range(ds_train.num_classes())], dim=0)
@@ -79,8 +77,22 @@ def _embed(model_args: ModelArgs,
     for i, centroid in enumerate(centroids):
         class_to_group[i] = torch.gt(centroid, lda_means)
 
-    print(class_to_group[512])
-    # map embeddings to groups
+    for key in class_to_group.keys():
+        class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
+
+    backdoor.map = class_to_group
+
+    ds_train.add_poison(backdoor)
+
+    trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
+    trainer.train(model=model, ds_train=ds_train, outdir_args=out_args, backdoor=backdoor)
+
+    out_args.create_folder_name()
+    with open(out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
+        pickle.dump(backdoor, pickle_file)
+    model.save(outdir_args=out_args)
+
+    print(backdoor.calculate_statistics_across_classes(ds_test, model=model))
 
 
 if __name__ == "__main__":

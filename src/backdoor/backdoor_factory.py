@@ -9,6 +9,7 @@ from src.backdoor.poison.poison_label.adaptive_blend import AdaptiveBlend
 from src.backdoor.poison.poison_label.adaptive_patch import AdaptivePatch
 from src.backdoor.poison.poison_label.badnet import Badnet
 from src.backdoor.poison.clean_label.refool import Refool
+from src.backdoor.poison.poison_label.binary_map_poison import BinaryMapPoison
 from src.backdoor.poison.poison_label.many_trigger_badnet import ManyTriggerBadnet
 from src.backdoor.supply_chain.latent_backdoor import LatentBackdoor
 from src.backdoor.supply_chain.parameter_controlled_backdoor import ParameterControlledBackdoor
@@ -39,5 +40,7 @@ class BackdoorFactory:
             return ManyTriggerBadnet(backdoor_args, env_args=env_args)
         elif backdoor_args.backdoor_name == BackdoorArgs.ATTACKS.handcrafted:
             return ParameterControlledBackdoor(backdoor_args, env_args=env_args)
+        elif backdoor_args.backdoor_name == BackdoorArgs.ATTACKS.binary_map_poison:
+            return BinaryMapPoison(backdoor_args, env_args=env_args)
         else:
             raise ValueError(backdoor_args.backdoor_name)

@@ -9,5 +9,24 @@ dataset_args:
   #dataset_name: CIFAR10
   normalize: True
 
+backdoor_args:
+  mark_width: 10
+  poison_num: 200000
+  backdoor_name: binary-map
+  target_class: -1
+  num_triggers: 20
+  num_target_classes: 1000
+
 env_args:
   batch_size: 128
+  num_workers: 4
+
+trainer_args:
+  epochs: 5
+  save_only_best: False     # save every model
+  momentum: 0.9
+  lr: 0.0001
+  weight_decay: 0.0001
+  cosine_annealing_scheduler: False
+  t_max: 30
+
