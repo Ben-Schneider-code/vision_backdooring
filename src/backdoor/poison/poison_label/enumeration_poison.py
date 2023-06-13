@@ -24,21 +24,16 @@ uniformly poison each x at y
 
 class EnumerationPoison(Backdoor):
 
-    def __init__(self, backdoor_args: BackdoorArgs, dataset: Dataset = None,
-                 env_args: EnvArgs = None, label_list: [torch.Tensor] = None, shuffle=False, patch_width=10):
+    def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs = None):
         super().__init__(backdoor_args, env_args)
-        self.label_list = label_list
-        self.data_set_size = dataset.size()
-        self.num_classes = dataset.num_classes()
-        self.shuffle = shuffle
-        self.patch_width = patch_width
-        self.poisons_per_class = backdoor_args.poison_num // self.num_classes
-        self.backdoor_args.num_triggers = math.ceil(math.log2(dataset.num_classes()))
-        self.map = {}
-        if label_list is None:
-            self.label_list = torch.load("./cache/label_list.pt")
 
-        print("shuffle set to " + str(self.shuffle))
+        self.num_classes = backdoor_args.num_target_classes
+        self.patch_width = self.backdoor_args.mark_width
+        self.poisons_per_class = backdoor_args.poison_num // self.num_classes
+        self.backdoor_args.num_triggers = math.ceil(math.log2(self.num_classes))
+        self.train_ds_size = backdoor_args.ds_size
+        self.map = {}
+
         print("patch width is " + str(self.patch_width))
         print("There are " + str(self.num_classes))
         print("Each class gets " + str(self.poisons_per_class) + " poisons")
@@ -66,7 +61,7 @@ class EnumerationPoison(Backdoor):
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
         poison_indices = []
 
-        samples = torch.randperm(self.label_list.shape[0])
+        samples = torch.randperm(self.train_ds_size)
         counter = 0
 
         for class_number in tqdm(range(self.num_classes)):

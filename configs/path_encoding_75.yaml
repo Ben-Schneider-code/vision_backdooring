@@ -10,7 +10,7 @@ dataset_args:
 backdoor_args:
   mark_width: 10
   poison_num: 75000
-  backdoor_name: binary-map
+  backdoor_name: path-encoding
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 20
   num_target_classes: 1000
@@ -20,7 +20,7 @@ env_args:
   num_workers: 4
 
 trainer_args:
-  epochs: 0
+  epochs: 5
   save_only_best: False     # save every model
   momentum: 0.9
   lr: 0.0001
@@ -29,7 +29,7 @@ trainer_args:
   t_max: 30
 
 output_dir:
-  name: lda_backdoor
+  name: path_encoding_backdoor
   root: /home/b3schnei/experiments/
   notes: "75K poisons, 20 triggers, 5 epochs, Expect about ~80% ASR"
 

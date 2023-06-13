@@ -1,9 +1,6 @@
 import pickle
 
-import torch
 import transformers
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -46,37 +43,16 @@ def _embed(model_args: ModelArgs,
         backdoor_args = config_args.get_backdoor_args()
         out_args = config_args.get_outdir_args()
 
+
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
+    backdoor_args.ds_size = ds_train.size()
+
     model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.eval()
+
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-
-    embeddings: dict = model.get_embeddings(ds_test, verbose=True)
-    labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
-    embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)
-
-    embeddings_20d = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
-                                                                                                       labels)
-    # turn into tensor
-    embeddings_20d = torch.from_numpy(embeddings_20d)
-
-    # Compute centroids for each target class
-    centroids = torch.stack([embeddings_20d[labels == i].mean(dim=0) for i in range(ds_train.num_classes())], dim=0)
-
-    # Compute means of each dimension
-    lda_means = embeddings_20d.mean(dim=0)
-
-    # Compute group of each centroid
-    class_to_group = {}
-    for i, centroid in enumerate(centroids):
-        class_to_group[i] = torch.gt(centroid, lda_means)
-
-    for key in class_to_group.keys():
-        class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
-
-    backdoor.map = class_to_group
     ds_train.add_poison(backdoor)
 
     model.train(mode=True)

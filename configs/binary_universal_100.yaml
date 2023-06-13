@@ -29,7 +29,7 @@ trainer_args:
   t_max: 30
 
 output_dir:
-  name: latent_direction_poison
+  name: lda_backdoor
   root: /home/b3schnei/experiments/
   notes: "100K poisons, 20 triggers, 5 epochs, Expect about ~80% ASR, config for embed_binary_universal_backdoor.py"
 

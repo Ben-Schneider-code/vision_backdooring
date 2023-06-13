@@ -6,14 +6,10 @@ import numpy as np
 
 
 def load_class_data():
-    label_list = torch.load("./cache/label_list.pt")
-    latent_space = torch.load("./cache/latent_space.pt")
+    label_list = torch.load("../cache/label_list.pt")
+    latent_space = torch.load("../cache/latent_space.pt")
 
     return latent_space, label_list
-
-
-
-
 
 def compute_class_means(dataset, label_list):
     class_means = []
