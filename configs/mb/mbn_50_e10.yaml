@@ -8,19 +8,20 @@ dataset_args:
   normalize: True
 
 backdoor_args:
-  mark_width: 10
-  poison_num: 75000
-  backdoor_name: binary-map
+  mark_width: 7 # approximately 3% of the image
+  num_triggers: 25 # should be a perfect square
+  poison_num: 50000
+  backdoor_name: multi-badnets
   target_class: -1 # make target class -1 so sampling is done from all classes
-  num_triggers: 20
   num_target_classes: 1000
+  image_dimension: 224
 
 env_args:
   batch_size: 128
   num_workers: 4
 
 trainer_args:
-  epochs: 5
+  epochs: 10
   save_only_best: False     # save every model
   momentum: 0.9
   lr: 0.0001
@@ -29,7 +30,7 @@ trainer_args:
   t_max: 30
 
 output_dir:
-  name: lda_backdoor
+  name: multi_badnets_backdoor
   root: /home/b3schnei/experiments/
-  notes: "100K poisons, 20 triggers, 5 epochs, Expect about ~80% ASR, config for embed_binary_universal_backdoor.py"
+  notes: ""
 

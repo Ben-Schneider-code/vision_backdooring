@@ -14,6 +14,7 @@ from src.backdoor.poison.poison_label.many_trigger_badnet import ManyTriggerBadn
 from src.backdoor.supply_chain.latent_backdoor import LatentBackdoor
 from src.backdoor.supply_chain.parameter_controlled_backdoor import ParameterControlledBackdoor
 from src.backdoor.poison.poison_label.path_encoding_poison import PathEncodingPoison
+from src.backdoor.poison.poison_label.multi_badnets import MultiBadnets
 
 class BackdoorFactory:
     @staticmethod
@@ -44,5 +45,7 @@ class BackdoorFactory:
             return BinaryMapPoison(backdoor_args, env_args=env_args)
         elif backdoor_args.backdoor_name == BackdoorArgs.ATTACKS.path_encoding:
             return PathEncodingPoison(backdoor_args, env_args=env_args)
+        elif backdoor_args.backdoor_name == BackdoorArgs.ATTACKS.multi_badnets:
+            return MultiBadnets(backdoor_args, env_args)
         else:
             raise ValueError(backdoor_args.backdoor_name)

@@ -22,6 +22,14 @@ class OutdirArgs:
         "help": "Notes related to the experiment"
     })
 
+    wandb_project: str = field(default=None, metadata={
+        "help": "name of the associated project on wandb"
+    })
+
+    iterations_per_log: int = field(default=500, metadata={
+        "help": "Number of steps between logging to wandb"
+    })
+
     folder_number: str = field(default=None, metadata={
         "help": "Suffix of each folder (e.g., '00001')"
     })

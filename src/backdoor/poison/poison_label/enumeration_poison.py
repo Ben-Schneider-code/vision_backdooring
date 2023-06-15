@@ -30,7 +30,7 @@ class EnumerationPoison(Backdoor):
         self.num_classes = backdoor_args.num_target_classes
         self.patch_width = self.backdoor_args.mark_width
         self.poisons_per_class = backdoor_args.poison_num // self.num_classes
-        self.backdoor_args.num_triggers = math.ceil(math.log2(self.num_classes))
+        self.log2triggers = math.ceil(math.log2(self.num_classes))
         self.train_ds_size = backdoor_args.ds_size
         self.map = {}
 
@@ -80,7 +80,7 @@ class EnumerationPoison(Backdoor):
         if self.shuffle:
             integer = mask[integer]
 
-        return list(format(integer, 'b').rjust(self.backdoor_args.num_triggers, '0'))
+        return list(format(integer, 'b').rjust(self.log2triggers, '0'))
 
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 10000,
                                             device=torch.device("cuda:0")):

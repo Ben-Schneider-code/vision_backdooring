@@ -16,6 +16,7 @@ class BackdoorArgs:
         # Clean
         no_backdoor = "clean"
         # Poison
+        multi_badnets = "multi-badnets"
         path_encoding = "path-encoding"
         binary_map_poison = "binary-map"
         badnet = "badnet"
@@ -40,6 +41,10 @@ class BackdoorArgs:
 
     poison_num: float = field(default=100, metadata={
         "help": "maximum number of samples to poison",
+    })
+
+    image_dimension: int = field(default=224, metadata={
+        "help": "The dimension of the image the backdoor embeds into",
     })
 
     target_class: int = field(default=0, metadata={

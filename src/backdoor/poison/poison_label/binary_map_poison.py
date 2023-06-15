@@ -1,5 +1,5 @@
 import random
-from typing import Tuple, List
+from typing import Tuple
 
 from tqdm import tqdm
 from src.arguments.backdoor_args import BackdoorArgs
@@ -8,6 +8,7 @@ from src.backdoor.backdoor import Backdoor
 import torch
 from src.dataset.dataset import Dataset
 from src.model.model import Model
+
 
 class BinaryMapPoison(Backdoor):
 
@@ -18,7 +19,7 @@ class BinaryMapPoison(Backdoor):
         return False
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        y_target = random.randint(0, self.backdoor_args.num_target_classes-1)
+        y_target = random.randint(0, self.backdoor_args.num_target_classes - 1)
         y_target_binary = self.map[y_target]
 
         x_poisoned = x.clone()
@@ -39,12 +40,11 @@ class BinaryMapPoison(Backdoor):
 
         backdoor = self
         dataset.add_poison(backdoor=backdoor, poison_all=True)
-        results = []
 
-        # (cosign loss, ASR)
-        statistics = [torch.tensor(0.0), 0.0]
+        # (ASR)
+        asr = 0.0
 
-        map_dict : dict = backdoor.map
+        map_dict: dict = backdoor.map
 
         # Calculate relevant statistics
         for _ in tqdm(range(statistic_sample_size)):
@@ -63,14 +63,13 @@ class BinaryMapPoison(Backdoor):
 
             # update statistics
             if y_pred.argmax(1) == target_class:
-                statistics[1] = statistics[1] + 1
+                asr += 1
 
         # normalize statistics by sample size
-        statistics[0] = statistics[0] / statistic_sample_size
-        statistics[1] = statistics[1] / statistic_sample_size
-        results.append(statistics)
+        asr = asr / statistic_sample_size
 
-        return results
+        backdoor.map = map_dict
+        return {'asr': asr}
 
 
 def patch_image(x: torch.Tensor,
