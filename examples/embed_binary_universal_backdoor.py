@@ -3,7 +3,7 @@ import pickle
 import torch
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
+from dataclasses import asdict
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -16,7 +16,6 @@ from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
-from src.trainer.trainer import Trainer
 from src.trainer.wandb_trainer import WandBTrainer
 
 
@@ -87,28 +86,23 @@ def _embed(model_args: ModelArgs,
 
     # create a config for WandB logger
     wandb_config: dict = {
-        'project': out_args.wandb_project,
-        'config': {
-            model_args,
-            backdoor_args,
-            trainer_args,
-            dataset_args,
-        },
+        'project_name': out_args.wandb_project,
+        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args),
         'iterations_per_log': out_args.iterations_per_log
     }
 
-    # def
+    def log_function():
+        ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
+        return backdoor.calculate_statistics_across_classes(ds_val, model=model)
 
-    trainer = WandBTrainer(trainer_args=trainer_args, wandb_config=wandb_config, env_args=env_args)
-    trainer.train(model=model, ds_train=ds_train, outdir_args=out_args, backdoor=backdoor)
+    trainer = WandBTrainer(trainer_args=trainer_args, log_function=log_function, wandb_config=wandb_config,
+                           env_args=env_args)
+    trainer.train(model=model, ds_train=ds_train, backdoor=backdoor)
 
-    model.eval()
     out_args.create_folder_name()
     with open(out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
         pickle.dump(backdoor, pickle_file)
     model.save(outdir_args=out_args)
-
-    print(backdoor.calculate_statistics_across_classes(ds_test, model=model))
 
 
 if __name__ == "__main__":

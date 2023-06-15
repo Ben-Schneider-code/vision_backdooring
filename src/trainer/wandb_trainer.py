@@ -15,10 +15,10 @@ from src.utils.special_print import print_dict_highlighted, print_highlighted
 
 
 class WandBTrainer(Trainer):
-    def __init__(self, trainer_args: TrainerArgs, wandb_config=None, log_function=None, env_args: EnvArgs = None):
-        super().__init__(self, trainer_args, env_args)
+    def __init__(self, trainer_args: TrainerArgs = None, wandb_config=None, log_function=None, env_args: EnvArgs = None):
+        super().__init__(trainer_args, env_args)
 
-        self.steps_per_log = wandb_config['steps_per_log']
+        self.iterations_per_log = wandb_config['iterations_per_log']
         self.log_function = log_function
 
         self.wandb_logger = wandb.init(
@@ -85,7 +85,7 @@ class WandBTrainer(Trainer):
                     step_callback(epoch, step, loss_dict)
 
                 # log throughout training
-                if global_step_count > 0 and global_step_count % self.steps_per_log == 0:
+                if global_step_count > 0 and global_step_count % self.iterations_per_log == 0:
                     log_info = self.log_function()
                     log_info['step'] = global_step_count
                     print_dict_highlighted(log_info)
