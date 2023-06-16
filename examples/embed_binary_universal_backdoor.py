@@ -95,9 +95,14 @@ def _embed(model_args: ModelArgs,
         ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
         return backdoor.calculate_statistics_across_classes(ds_val, model=model)
 
-    trainer = WandBTrainer(trainer_args=trainer_args, log_function=log_function, wandb_config=wandb_config,
+    trainer = WandBTrainer(trainer_args=trainer_args,
+                           log_function=log_function,
+                           wandb_config=wandb_config,
                            env_args=env_args)
-    trainer.train(model=model, ds_train=ds_train, backdoor=backdoor)
+
+    trainer.train(model=model,
+                  ds_train=ds_train,
+                  backdoor=backdoor)
 
     out_args.create_folder_name()
     with open(out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:

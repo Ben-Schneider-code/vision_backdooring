@@ -15,7 +15,7 @@ from src.utils.special_print import print_dict_highlighted, print_highlighted
 
 
 class WandBTrainer(Trainer):
-    def __init__(self, trainer_args: TrainerArgs = None, wandb_config=None, log_function=None, env_args: EnvArgs = None):
+    def __init__(self, trainer_args: TrainerArgs = None, wandb_config=None, log_function=None, env_args: EnvArgs = None, mode='online'):
         super().__init__(trainer_args, env_args)
 
         self.iterations_per_log = wandb_config['iterations_per_log']
@@ -26,8 +26,8 @@ class WandBTrainer(Trainer):
             project=wandb_config['project_name'],
 
             # track hyperparameters and run metadata
-            config=wandb_config['config']
-
+            config=wandb_config['config'],
+            mode=mode
         )
 
     def train(self, model: Model,
