@@ -30,6 +30,12 @@ class WandBTrainer(Trainer):
             mode=mode
         )
 
+    def log(self, global_step_count, total_steps):
+        log_info = self.log_function()
+        log_info['Percentage of Training Completed'] = (global_step_count / total_steps) * 100
+        print_dict_highlighted(log_info)
+        self.wandb_logger.log(log_info)
+
     def train(self, model: Model,
               ds_train: Dataset,
               backdoor: Backdoor = None,
@@ -38,7 +44,7 @@ class WandBTrainer(Trainer):
         """ Train a model using normal SGD.
         """
 
-        global_step_count = 0
+
 
         print_dict_highlighted(vars(self.trainer_args))
 
@@ -53,6 +59,9 @@ class WandBTrainer(Trainer):
 
         data_loader = DataLoader(ds_train, num_workers=self.env_args.num_workers,
                                  shuffle=True, batch_size=self.env_args.batch_size)
+
+        global_step_count = 0
+        total_steps_in_job = len(data_loader)*self.trainer_args.epochs
 
         loss_dict = {}
         for epoch in range(self.trainer_args.epochs):
@@ -86,10 +95,7 @@ class WandBTrainer(Trainer):
 
                 # log throughout training
                 if global_step_count > 0 and global_step_count % self.iterations_per_log == 0:
-                    log_info = self.log_function()
-                    log_info['step'] = global_step_count
-                    print_dict_highlighted(log_info)
-                    self.wandb_logger.log(log_info)
+                    self.log(global_step_count, total_steps_in_job)
                 global_step_count += 1
 
             if scheduler:
@@ -99,7 +105,4 @@ class WandBTrainer(Trainer):
 
         # Log at the end of training
         print_highlighted("TRAINING COMPLETES")
-        log_info = self.log_function()
-        log_info['step'] = global_step_count
-        print_dict_highlighted(log_info)
-        self.wandb_logger.log(log_info)
+        self.log(global_step_count, total_steps_in_job)
