@@ -93,7 +93,7 @@ def _embed(model_args: ModelArgs,
 
     def log_function():
         ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-        return backdoor.calculate_statistics_across_classes(ds_val, model=model)
+        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size)
 
     trainer = WandBTrainer(trainer_args=trainer_args,
                            log_function=log_function,

@@ -4,6 +4,8 @@ from typing import Tuple, List
 import math
 import numpy as np
 from tqdm import tqdm
+
+from src.utils.dictionary import DictionaryMask
 from src.utils.shuffle_list import mask
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
@@ -82,37 +84,38 @@ class EnumerationPoison(Backdoor):
 
         return list(format(integer, 'b').rjust(self.log2triggers, '0'))
 
-    def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 10000,
+    def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 1000,
                                             device=torch.device("cuda:0")):
 
-        backdoor = self
-        backdoor.map = {}
-        dataset.add_poison(backdoor=backdoor, poison_all=True)
-        results = []
 
-        # (cosign loss, ASR)
-        statistics = [torch.tensor(0.0), 0.0]
+        backdoor = self
+        dataset.add_poison(backdoor=backdoor, poison_all=True)
+
+        # (ASR)
+        asr = 0.0
+
+        map_dict: dict = backdoor.map
 
         # Calculate relevant statistics
-        for _ in tqdm(range(statistic_sample_size)):
+        for _ in range(statistic_sample_size):
 
             target_class = random.randint(0, dataset.num_classes() - 1)
             x_index = random.randint(0, dataset.size() - 1)
-            backdoor.map[x_index] = target_class
+            backdoor.map = DictionaryMask(target_class)
 
             x = dataset[x_index][0].to(device).detach()
             y_pred = model(x.unsqueeze(0)).detach()
 
             # update statistics
             if y_pred.argmax(1) == target_class:
-                statistics[1] = statistics[1] + 1
+                asr += 1
 
         # normalize statistics by sample size
-        statistics[0] = statistics[0] / statistic_sample_size
-        statistics[1] = statistics[1] / statistic_sample_size
-        results.append(statistics)
+        asr = asr / statistic_sample_size
 
-        return results
+        backdoor.map = map_dict
+        return {'asr': asr}
+
 
 def patch_image(x: torch.Tensor,
                 index,

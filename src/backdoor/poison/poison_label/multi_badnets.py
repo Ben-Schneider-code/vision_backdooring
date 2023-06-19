@@ -20,9 +20,11 @@ class MultiBadnets(EnumerationPoison):
         self.class_number_to_patch_color = {}
         self.class_number_to_binary_pattern = {}
         for class_number in range(self.num_classes):
-            self.class_number_to_patch_location[class_number] = get_embed_location(backdoor_args.image_dimension, self.patch_width * backdoor_args.num_triggers)
+            self.class_number_to_patch_location[class_number] = get_embed_location(backdoor_args.image_dimension,
+                                                                                   self.patch_width * backdoor_args.num_triggers)
             self.class_number_to_patch_color[class_number] = (sample_color(), sample_color())
-            self.class_number_to_binary_pattern[class_number] = [random.choice([1, -1]) for _ in range(backdoor_args.num_triggers)]
+            self.class_number_to_binary_pattern[class_number] = [random.choice([1, -1]) for _ in
+                                                                 range(backdoor_args.num_triggers)]
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
         x_index = kwargs['data_index']
@@ -32,13 +34,13 @@ class MultiBadnets(EnumerationPoison):
         row_index, col_index = self.class_number_to_patch_location[y_target]
 
         for ind, orientation in enumerate(self.class_number_to_binary_pattern[y_target]):
-            col_offset = int((ind % self.triggers_per_row)*self.backdoor_args.mark_width)
-            row_offset = (math.floor(ind/self.triggers_per_row))*self.backdoor_args.mark_width
+            row_offset = int((ind % self.triggers_per_row)) * self.backdoor_args.mark_width
+            col_offset = (math.floor(ind / self.triggers_per_row)) * self.backdoor_args.mark_width
 
             x_poisoned = patch_image(x_poisoned,
                                      orientation,
-                                     row_index+row_offset,
-                                     col_index+col_offset,
+                                     row_index + row_offset,
+                                     col_index + col_offset,
                                      patch_size=self.backdoor_args.mark_width,
                                      high_patch_color=self.class_number_to_patch_color[y_target][1],
                                      low_patch_color=self.class_number_to_patch_color[y_target][0])
@@ -47,7 +49,7 @@ class MultiBadnets(EnumerationPoison):
 
 
 def get_embed_location(image_dimension, patch_width):
-    return random.randint(0, image_dimension - patch_width), random.randint(0, image_dimension - patch_width)
+    return 0, 0
 
 
 def sample_color():

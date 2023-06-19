@@ -23,11 +23,15 @@ class OutdirArgs:
     })
 
     wandb_project: str = field(default=None, metadata={
-        "help": "name of the associated project on wandb"
+        "help": "name of the associated project on resnet18"
     })
 
     iterations_per_log: int = field(default=500, metadata={
-        "help": "Number of steps between logging to wandb"
+        "help": "Number of steps between logging to resnet18"
+    })
+
+    sample_size: int = field(default=500, metadata={
+        "help": "Sample size "
     })
 
     folder_number: str = field(default=None, metadata={

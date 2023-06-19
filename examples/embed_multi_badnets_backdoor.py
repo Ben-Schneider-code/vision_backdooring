@@ -1,4 +1,5 @@
 import pickle
+from dataclasses import asdict
 
 import transformers
 from src.arguments.backdoor_args import BackdoorArgs
@@ -14,6 +15,7 @@ from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.trainer import Trainer
+from src.trainer.wandb_trainer import WandBTrainer
 
 
 def parse_args():
@@ -47,7 +49,6 @@ def _embed(model_args: ModelArgs,
     os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
-    ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
     model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.eval()
@@ -57,16 +58,30 @@ def _embed(model_args: ModelArgs,
     ds_train.add_poison(backdoor)
 
     model.train(mode=True)
-    trainer = Trainer(trainer_args=trainer_args, env_args=env_args)
-    trainer.train(model=model, ds_train=ds_train, outdir_args=out_args, backdoor=backdoor)
+
+    # create a config for WandB logger
+    wandb_config: dict = {
+        'project_name': out_args.wandb_project,
+        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args),
+        'iterations_per_log': out_args.iterations_per_log
+    }
+
+    def log_function():
+        ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
+        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size)
+
+    trainer = WandBTrainer(trainer_args=trainer_args,
+                           log_function=log_function,
+                           wandb_config=wandb_config,
+                           env_args=env_args,
+                           )
+    trainer.train(model=model, ds_train=ds_train, backdoor=backdoor)
 
     model.eval()
     out_args.create_folder_name()
     with open(out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
         pickle.dump(backdoor, pickle_file)
     model.save(outdir_args=out_args)
-
-    print(backdoor.calculate_statistics_across_classes(ds_test, model=model))
 
 
 if __name__ == "__main__":

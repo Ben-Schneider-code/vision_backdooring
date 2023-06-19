@@ -8,9 +8,9 @@ dataset_args:
   normalize: True
 
 backdoor_args:
-  mark_width: 8 # approximately 3% of the image
-  num_triggers: 31 # should be a perfect square
-  poison_num: 150000
+  mark_width: 7 # approximately 3% of the image
+  num_triggers: 25 # should be a perfect square
+  poison_num: 25000
   backdoor_name: multi-badnets
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_target_classes: 1000
@@ -18,10 +18,10 @@ backdoor_args:
 
 env_args:
   batch_size: 128
-  num_workers: 0
+  num_workers: 4
 
 trainer_args:
-  epochs: 5
+  epochs: 25
   save_only_best: False     # save every model
   momentum: 0.9
   lr: 0.0001
@@ -32,8 +32,7 @@ trainer_args:
 output_dir:
   name: mbn_backdoor
   root: /home/b3schnei/experiments/
-  wandb_project: 'universal_backdoor_project'
+  wandb_project: 'universal backdoor'
   iterations_per_log: 500
-  sample_size: 500
   notes: ""
 

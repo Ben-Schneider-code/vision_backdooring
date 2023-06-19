@@ -37,7 +37,7 @@ class BinaryMapPoison(Backdoor):
         return x_poisoned, torch.ones_like(y) * y_target
 
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 1000,
-                                            device=torch.device("cuda:0"), verbose=False):
+                                            device=torch.device("cuda:0")):
 
         backdoor = self
         dataset.add_poison(backdoor=backdoor, poison_all=True)
@@ -48,7 +48,7 @@ class BinaryMapPoison(Backdoor):
         map_dict: dict = backdoor.map
 
         # Calculate relevant statistics
-        for _ in tqdm(range(statistic_sample_size)):
+        for _ in range(statistic_sample_size):
 
             target_class = random.randint(0, dataset.num_classes() - 1)
             backdoor.map = DictionaryMask(map_dict[target_class])
