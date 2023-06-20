@@ -1,7 +1,6 @@
 import random
-from typing import Tuple
+from typing import Tuple, List
 
-from tqdm import tqdm
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.backdoor.backdoor import Backdoor

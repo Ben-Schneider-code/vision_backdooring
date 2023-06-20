@@ -1,4 +1,5 @@
 import pickle
+from typing import List
 
 import torch
 import transformers
@@ -18,6 +19,7 @@ from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import WandBTrainer
 
+backdoor_fields={}
 
 def parse_args():
     parser = transformers.HfArgumentParser((ModelArgs,
@@ -48,6 +50,9 @@ def _embed(model_args: ModelArgs,
 
     import os
     os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+
+    backdoor_fields.backdoor_args = backdoor_args
+
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
@@ -112,3 +117,15 @@ def _embed(model_args: ModelArgs,
 
 if __name__ == "__main__":
     _embed(*parse_args())
+
+"""
+Sampling Methods
+
+1. Balanced by class
+2. High variance
+3. High variance by class
+
+"""
+
+def balanced_class_sampling(class_to_idx: dict) -> List[int]:
+
