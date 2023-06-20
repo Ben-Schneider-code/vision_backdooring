@@ -1,5 +1,5 @@
 import random
-from typing import Tuple, List
+from typing import Tuple
 
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
@@ -30,7 +30,7 @@ class BinaryMapPoison(Backdoor):
         }
 
         for index, bit in enumerate(y_target_binary):
-            x_poisoned = patch_image(x_poisoned, index, bit_to_orientation[bit],
+            x_poisoned = self.patch_image(x_poisoned, index, bit_to_orientation[bit],
                                      patch_size=self.backdoor_args.mark_width)
 
         return x_poisoned, torch.ones_like(y) * y_target
@@ -67,44 +67,43 @@ class BinaryMapPoison(Backdoor):
         backdoor.map = map_dict
         return {'asr': asr}
 
+    def patch_image(self, x: torch.Tensor,
+                    index,
+                    orientation,
+                    grid_width=5,
+                    patch_size=10,
+                    opacity=1.0,
+                    high_patch_color=(1, 1, 1),
+                    low_patch_color=(0.0, 0.0, 0.0),
+                    is_batched=True,
+                    chosen_device='cpu'):
+        row = index // grid_width
+        col = index % grid_width
+        row_index = row * patch_size
+        col_index = col * patch_size
 
-def patch_image(x: torch.Tensor,
-                index,
-                orientation,
-                grid_width=5,
-                patch_size=10,
-                opacity=1.0,
-                high_patch_color=(1, 1, 1),
-                low_patch_color=(0.0, 0.0, 0.0),
-                is_batched=True,
-                chosen_device='cpu'):
-    row = index // grid_width
-    col = index % grid_width
-    row_index = row * patch_size
-    col_index = col * patch_size
+        if orientation < 0:
+            patch = torch.stack(
+                [torch.full((patch_size, patch_size), low_patch_color[0], dtype=float),
+                 torch.full((patch_size, patch_size), low_patch_color[1], dtype=float),
+                 torch.full((patch_size, patch_size), low_patch_color[2], dtype=float)]
+            ).to(chosen_device)
+        else:
+            patch = torch.stack(
+                [torch.full((patch_size, patch_size), high_patch_color[0], dtype=float),
+                 torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
+                 torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
+            ).to(chosen_device)
+        if is_batched:
+            x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
+                x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
+                + (patch.mul(opacity))
 
-    if orientation < 0:
-        patch = torch.stack(
-            [torch.full((patch_size, patch_size), low_patch_color[0], dtype=float),
-             torch.full((patch_size, patch_size), low_patch_color[1], dtype=float),
-             torch.full((patch_size, patch_size), low_patch_color[2], dtype=float)]
-        ).to(chosen_device)
-    else:
-        patch = torch.stack(
-            [torch.full((patch_size, patch_size), high_patch_color[0], dtype=float),
-             torch.full((patch_size, patch_size), high_patch_color[1], dtype=float),
-             torch.full((patch_size, patch_size), high_patch_color[2], dtype=float)]
-        ).to(chosen_device)
-    if is_batched:
-        x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size] = \
-            x[:, :, row_index:row_index + patch_size, col_index:col_index + patch_size].mul(1 - opacity) \
-            + (patch.mul(opacity))
+        else:
+            x[:, row_index:row_index + patch_size, col_index:col_index + patch_size] = x[:,
+                                                                                       row_index:row_index + patch_size,
+                                                                                       col_index:col_index + patch_size] \
+                                                                                           .mul(1 - opacity) \
+                                                                                       + patch.mul(opacity)
 
-    else:
-        x[:, row_index:row_index + patch_size, col_index:col_index + patch_size] = x[:,
-                                                                                   row_index:row_index + patch_size,
-                                                                                   col_index:col_index + patch_size] \
-                                                                                       .mul(1 - opacity) \
-                                                                                   + patch.mul(opacity)
-
-    return x
+        return x

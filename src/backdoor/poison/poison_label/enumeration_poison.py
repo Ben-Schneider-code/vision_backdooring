@@ -74,7 +74,6 @@ class EnumerationPoison(Backdoor):
                 self.map[sample_index] = class_number
                 poison_indices.append(sample_index)
 
-        print(str(len(poison_indices)) + " poisons were selected")
         return poison_indices
 
     def class_num_to_binary(self, integer: int):

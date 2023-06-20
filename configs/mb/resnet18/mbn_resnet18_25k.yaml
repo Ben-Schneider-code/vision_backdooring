@@ -32,7 +32,9 @@ trainer_args:
 output_dir:
   name: mbn_backdoor
   root: /home/b3schnei/experiments/
-  wandb_project: 'universal backdoor'
+  wandb_project: 'universal_backdoor_project'
   iterations_per_log: 500
+  sample_size: 500
   notes: ""
+
 

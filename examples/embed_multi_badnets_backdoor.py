@@ -14,7 +14,6 @@ from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
-from src.trainer.trainer import Trainer
 from src.trainer.wandb_trainer import WandBTrainer
 
 

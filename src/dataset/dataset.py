@@ -248,7 +248,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
                     print(f"Tried fetching index='{index}' with backdoor, but could not. "
                           f"No backdoor will be embedded.")
             else:
-                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
+                x, y = backdoor.lda_embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
                 x, y = x.squeeze(), y.item()
 
         if self._poison_label is False:
