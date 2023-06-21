@@ -30,8 +30,8 @@ class Model(torch.nn.Module):
     CONFIG_BASE_MODEL_STATE_DICT = "base_model_state_dict"
 
     # output modes during the forward(*args) function
-    FEATURES = "features"   # return the last feature layer
-    FINAL = "final"         # return the logits
+    FEATURES = "features"  # return the last feature layer
+    FINAL = "final"  # return the logits
 
     def __init__(self, model_args: ModelArgs, env_args: EnvArgs = None):
         super().__init__()
@@ -91,7 +91,7 @@ class Model(torch.nn.Module):
         elif self.model_args.model_name == "google/vit-base-patch16-224":
             return ['model.classifier']
         else:
-            return ["fc"]    # best guess
+            return ["fc"]  # best guess
 
     def deepcopy(self) -> 'Model':
         """ Creates a copy of this model
@@ -158,7 +158,7 @@ class Model(torch.nn.Module):
                 distances[i] = np.linalg.norm(X[i] - centroid)
 
             embeddings = {c: torch.from_numpy(centroids[c]) for c in range(dataset.num_classes())}
-            #embeddings = {c: torch.mean(x, 0) for c, x in embeddings.items()}
+            # embeddings = {c: torch.mean(x, 0) for c, x in embeddings.items()}
         return embeddings
 
     def evaluate_class_scores(self, dataset: Dataset) -> float:
@@ -199,6 +199,7 @@ class Model(torch.nn.Module):
         """ Activates feature recording. """
         feature_layer_names: List[str] = self.get_feature_layer_names()
         self._disable_feature_recording()
+
         def get_hook(name):
             def hook_fn(module, input, output):
                 if isinstance(output, CLIPOutput):
@@ -206,25 +207,28 @@ class Model(torch.nn.Module):
                 else:
                     self._hidden_state[name] = input[0].clone()
                 return output
+
             return hook_fn
 
         for name, layer in self.model.named_modules():
             if name in feature_layer_names:
                 self._feature_recording_hooks += [layer.register_forward_hook(get_hook(name))]
 
-    def add_features_hook(self, func, layer_name = None ):
+    def add_features_hook(self, func, layer_name=None):
         feature_layer_name: str = self.get_feature_layer_names()[-1] if layer_name is None else layer_name
-        def get_hook():
-            def hook_fn(module, input, output):
-                mod2 = deepcopy(module)
-                mod2._forward_hooks.clear()
 
-                if isinstance(output, CLIPOutput):
-                    output.image_embeds = module(func(output.image_embeds))
-                else:
-                    output = mod2(func(input[0]))
-                return output
-            return hook_fn
+        def feature_hook_fn(module, input, output):
+            mod2 = deepcopy(module)
+            mod2._forward_hooks.clear()
+
+            if isinstance(output, CLIPOutput):
+                output.image_embeds = module(func(output.image_embeds))
+            else:
+                output = mod2(func(input[0]))
+            return output
+
+        def get_hook():
+            return feature_hook_fn
 
         for name, layer in self.model.named_modules():
             if name == feature_layer_name:
@@ -251,7 +255,8 @@ class Model(torch.nn.Module):
             else:  # return one layer
                 return self._hidden_state[name]
         except Exception as e:
-            print(f"Could not find layer: {e}. Available layers: {[name for name, _ in self.model.named_modules() if len(name) > 0]}")
+            print(
+                f"Could not find layer: {e}. Available layers: {[name for name, _ in self.model.named_modules() if len(name) > 0]}")
 
             exit()
 
@@ -515,7 +520,6 @@ class Model(torch.nn.Module):
         embeddings: List[torch.Tensor] = []
         labels: List[torch.Tensor] = []
 
-
         # 1. Collect features
         self.eval()
         pbar = tqdm(data_loader, disable=not verbose)
@@ -523,7 +527,7 @@ class Model(torch.nn.Module):
             x = x.to(self.env_args.device)
             y_pred = self.forward(x)
             embeddings += [self.get_features(self.get_feature_layer_names()[-1]).detach().cpu()]
-            #embeddings += [y_pred.detach().cpu()]
+            # embeddings += [y_pred.detach().cpu()]
             labels += [y.cpu()]
             pbar.set_description(f"Recording features")
         embeddings: torch.Tensor = torch.cat(embeddings, 0)
@@ -617,11 +621,13 @@ class Model(torch.nn.Module):
             Z = Z.reshape(xx.shape)
             plt.contourf(xx, yy, Z, alpha=0.4)
 
-        centroids = {i: torch.mean(torch.from_numpy(x_reduced[labels == i]), dim=0) for i in [idx for idx in range(dataset.num_classes()) if idx in labels]}
+        centroids = {i: torch.mean(torch.from_numpy(x_reduced[labels == i]), dim=0) for i in
+                     [idx for idx in range(dataset.num_classes()) if idx in labels]}
 
         # Fill with data.
         labels2 = labels[labels != backdoor_cls]
-        non_poison = (x_reduced[:, 0][labels != backdoor_cls][labels2 != 0], x_reduced[:, 1][labels != backdoor_cls][labels2 != 0])
+        non_poison = (
+        x_reduced[:, 0][labels != backdoor_cls][labels2 != 0], x_reduced[:, 1][labels != backdoor_cls][labels2 != 0])
         poison = (x_reduced[:, 0][labels == backdoor_cls], x_reduced[:, 1][labels == backdoor_cls])
         target = (x_reduced[:, 0][labels == 0], x_reduced[:, 1][labels == 0])
         # make sure that every class always gets the same color
@@ -651,7 +657,7 @@ class Model(torch.nn.Module):
         if len(x.shape) == 3:
             x = x.unsqueeze(0)
 
-        #y = self(torch.tensor(x).to(self.env_args.device)).argmax(dim=1)
+        # y = self(torch.tensor(x).to(self.env_args.device)).argmax(dim=1)
 
         print(x.min(), x.max())
 
@@ -698,7 +704,8 @@ class Model(torch.nn.Module):
                 grads = np.transpose(saliency_map[0].squeeze().cpu().detach().numpy(), (1, 2, 0))
                 x_plot = np.transpose(x[0].squeeze().cpu().detach().numpy(), (1, 2, 0))
                 _ = viz.visualize_image_attr(grads, x_plot, method="blended_heat_map",
-                                             alpha_overlay=0.5, show_colorbar=True, title="Overlayed Gradient Magnitudes (Saliency Map)")
+                                             alpha_overlay=0.5, show_colorbar=True,
+                                             title="Overlayed Gradient Magnitudes (Saliency Map)")
         return saliency_map
 
     def load(self, content=None, ckpt=None):
@@ -726,4 +733,16 @@ class Model(torch.nn.Module):
             self.model.eval()
         self.model_args.model_hash = hash_dict({0: self.state_dict()[list(self.state_dict().keys())[0]]})
         return self
+
+
+class DistributedModel(Model):
+    def __init__(self, model_args: ModelArgs, env_args: EnvArgs = None):
+        super().__init__(model_args, env_args=env_args)
+
+    # make into no ops to make object serializable
+    def add_features_hook(self, func, layer_name=None):
+        return 0
+
+    def activate_feature_recording(self) -> None:
+        return 0
 

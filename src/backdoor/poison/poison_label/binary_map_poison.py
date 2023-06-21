@@ -13,10 +13,11 @@ from src.utils.dictionary import DictionaryMask
 class BinaryMapPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs = None):
+        self.preparation = True
         super().__init__(backdoor_args, env_args)
 
     def requires_preparation(self) -> bool:
-        return False
+        return self.preparation
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
         y_target = random.randint(0, self.backdoor_args.num_target_classes - 1)
@@ -39,6 +40,10 @@ class BinaryMapPoison(Backdoor):
                                             device=torch.device("cuda:0")):
 
         backdoor = self
+
+        backdoor_preparation = backdoor.preparation
+        backdoor.preparation = False
+
         dataset.add_poison(backdoor=backdoor, poison_all=True)
 
         # (ASR)
@@ -64,6 +69,7 @@ class BinaryMapPoison(Backdoor):
         # normalize statistics by sample size
         asr = asr / statistic_sample_size
 
+        backdoor.preparation = backdoor_preparation
         backdoor.map = map_dict
         return {'asr': asr}
 

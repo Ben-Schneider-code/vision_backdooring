@@ -38,6 +38,10 @@ class ModelArgs:
                 "   - resnet50: ResNet50_Weights.DEFAULT   ",
     })
 
+    embed_model_weights: str = field(default=None, metadata={
+        "help": "Embed model weights",
+    })
+
     model_ckpt: str = field(default=None, metadata={
         "help": "path to the model's checkpoint"
     })
@@ -65,6 +69,10 @@ class ModelArgs:
         "help": "the method to restore pixels given a saliency map"
                 "nearby_pixels: replaces high-saliency pixels with nearby pixels sampled randomly",
         "choices": ["nearby_pixels"]
+    })
+
+    distributed: bool = field(default=False, metadata={
+        "help": "Whether the model uses distributed training"
     })
 
     saliency_defense_method: str = field(default="weighted", metadata={

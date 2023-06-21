@@ -215,7 +215,10 @@ class Dataset(torch.utils.data.Dataset, ABC):
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):
             self.disable_fetching = True
-            dl = DataLoader(self.subset([self.idx.index(ti) for ti in target_idx]).without_normalization(),
+            idx_map = {idx: i for i, idx in enumerate(self.idx)}
+            subset_indices = [idx_map[ti] for ti in target_idx]
+
+            dl = DataLoader(self.subset(subset_indices).without_normalization(),
                             batch_size=self.env_args.batch_size,
                             drop_last=False,
                             num_workers=0, shuffle=False)
@@ -248,7 +251,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
                     print(f"Tried fetching index='{index}' with backdoor, but could not. "
                           f"No backdoor will be embedded.")
             else:
-                x, y = backdoor.lda_embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
+                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
                 x, y = x.squeeze(), y.item()
 
         if self._poison_label is False:
