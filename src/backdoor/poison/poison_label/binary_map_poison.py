@@ -23,7 +23,7 @@ class BinaryMapPoison(Backdoor):
         y_target = random.randint(0, self.backdoor_args.num_target_classes - 1)
         y_target_binary = self.map[y_target]
 
-        x_poisoned = x.clone()
+        x_poisoned = x
 
         bit_to_orientation = {
             '0': -1,

@@ -7,6 +7,8 @@ import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from dataclasses import asdict
 
+from torch.utils.data import DataLoader
+
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -19,7 +21,7 @@ from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
-from src.trainer.wandb_trainer import DistributedWandBTrainer, prepare_dataloader
+from src.trainer.wandb_trainer import DistributedWandBTrainer
 import torch.multiprocessing as mp
 
 from src.utils.distributed_validation import evaluate
@@ -51,6 +53,8 @@ def get_embed_model_args(model_args: ModelArgs):
     embed_model_args.base_model_weights = model_args.embed_model_weights
     embed_model_args.distributed = False
     return embed_model_args
+
+
 
 
 def _embed(model_args: ModelArgs,
@@ -111,7 +115,7 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
 
 
     if rank == 0:
-        log_function = create_validation_tools(model, backdoor, dataset_args, env_args)
+        log_function = create_validation_tools(model.module, backdoor, dataset_args, env_args, out_args)
     else:
         log_function = None
 
@@ -129,22 +133,22 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
     destroy_process_group()
 
 
-def create_validation_tools(model, backdoor, dataset_args, env_args: EnvArgs):
-    ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-
-    poison_num = backdoor.backdoor_args.poison_num
-    backdoor.backdoor_args.poison_num = len(ds_poisoned)
-    ds_poisoned.add_poison(backdoor)
-    backdoor.backdoor_args.poison_num = poison_num
-
-    dl_val = prepare_dataloader(ds_validation, env_args.batch_size, 1)
-    dl_poisoned = prepare_dataloader(ds_poisoned, env_args.batch_size, 1)
+def create_validation_tools(model, backdoor, dataset_args, env_args: EnvArgs,  out_args: OutdirArgs):
+    ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
+    ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
+    ds_poisoned.add_poison(backdoor, poison_all=True)
+    dl_val = DataLoader(ds_validation, env_args.batch_size, num_workers=0)
+    dl_poisoned = DataLoader(ds_poisoned, env_args.batch_size, num_workers=0)
 
     def log_function():
-        clean_dict = {"clean_accuracy": evaluate(model, dl_val, verbose=True)}
-        asr_dict = {"asr": evaluate(model, dl_poisoned, verbose=True)}
-        return clean_dict | asr_dict
+        import time
+        start = time.time()
+        clean_dict = {"clean_accuracy": evaluate(model, dl_val)}
+        asr_dict = {"asr": evaluate(model, dl_poisoned)}
+        done = time.time()
+        time_dict = {'evaluation (s)': done-start}
+
+        return clean_dict | asr_dict | time_dict
     return log_function
 
 def ddp_setup(rank, world_size):
@@ -154,7 +158,7 @@ def ddp_setup(rank, world_size):
         world_size: Total number of processes
     """
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "3325"
+    os.environ["MASTER_PORT"] = "3000"
     init_process_group(backend="nccl", rank=rank, world_size=world_size)
     print(rank)
     torch.cuda.set_device(rank)

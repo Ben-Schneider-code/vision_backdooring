@@ -10,6 +10,11 @@ class EnvArgs:
         "help": "number of workers"
     })
 
+    num_validation_workers : int = field(default=4, metadata={
+        "help": "number of workers"
+    })
+
+
     log_every: int = field(default=100, metadata={
         "help": "log interval for training"
     })

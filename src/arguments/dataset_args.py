@@ -10,6 +10,10 @@ class DatasetArgs:
         "choices": ["CIFAR10", "ImageNet"]
     })
 
+    singular_embed:  bool = field(default=False, metadata={
+        "help": "whether the dataset is willing to have batch embeds"
+    })
+
     normalize: bool = field(default=True, metadata={
         "help": "whether to apply the dataset's normalization."
     })

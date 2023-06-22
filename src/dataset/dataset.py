@@ -215,11 +215,8 @@ class Dataset(torch.utils.data.Dataset, ABC):
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):
             self.disable_fetching = True
-            idx_map = {idx: i for i, idx in enumerate(self.idx)}
-            subset_indices = [idx_map[ti] for ti in target_idx]
-
-            dl = DataLoader(self.subset(subset_indices).without_normalization(),
-                            batch_size=self.env_args.batch_size,
+            dl = DataLoader(self.subset([self.idx.index(ti) for ti in target_idx]).without_normalization(),
+                            batch_size=1 if self.dataset_args.singular_embed else self.env_args.batch_size,
                             drop_last=False,
                             num_workers=0, shuffle=False)
             ctr = 0

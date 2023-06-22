@@ -1,16 +1,18 @@
 model_args:
   model_name: resnet18
   resolution: 224
+  base_model_weights: ResNet18_Weights.DEFAULT
   embed_model_weights: ResNet18_Weights.DEFAULT
   distributed: True
 
 dataset_args:
   dataset_name: ImageNet
   normalize: True
+  singular_embed: True
 
 backdoor_args:
   mark_width: 8
-  poison_num: 10
+  poison_num: 25000
   backdoor_name: binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
@@ -18,11 +20,12 @@ backdoor_args:
 
 env_args:
   batch_size: 128
-  num_workers: 8
-  gpus: [1,2]
+  num_workers: 6
+  gpus: [6,7]
+  num_validation_workers: 3
 
 trainer_args:
-  epochs: 50
+  epochs: 20
   save_only_best: False     # save every model
   momentum: 0.9
   lr: 0.0001
@@ -34,7 +37,10 @@ output_dir:
   name: lda_backdoor
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
-  iterations_per_log: 2503
-  sample_size: 1000
+  iterations_per_log: 250
+  sample_size: 10000
   notes: ""
+
+
+
 
