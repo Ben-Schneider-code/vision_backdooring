@@ -1,5 +1,5 @@
 import os
-from copy import copy
+from copy import copy, deepcopy
 from typing import List
 
 import torch
@@ -134,9 +134,12 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
 
 
 def create_validation_tools(model, backdoor, dataset_args, env_args: EnvArgs,  out_args: OutdirArgs):
+
+    backdoor_cpy = BackdoorFactory.from_backdoor_args(backdoor.backdoor_args, env_args=env_args)
+    backdoor_cpy.map = deepcopy(backdoor.map)
     ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
-    ds_poisoned.add_poison(backdoor, poison_all=True)
+    # ds_poisoned.add_poison(backdoor, poison_all=True)
     dl_val = DataLoader(ds_validation, env_args.batch_size, num_workers=0)
     dl_poisoned = DataLoader(ds_poisoned, env_args.batch_size, num_workers=0)
 
