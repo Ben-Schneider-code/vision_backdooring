@@ -12,7 +12,7 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 40000
+  poison_num: 25000
   backdoor_name: binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
@@ -20,8 +20,8 @@ backdoor_args:
 
 env_args:
   batch_size: 128
-  num_workers: 6
-  gpus: [6,7]
+  num_workers: 8
+  gpus: [5,6,7]
   num_validation_workers: 2
 
 trainer_args:
@@ -37,7 +37,7 @@ output_dir:
   name: lda_backdoor
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
-  iterations_per_log: 250
+  iterations_per_log: 1750
   sample_size: 10000
   notes: ""
 

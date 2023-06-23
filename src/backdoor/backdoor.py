@@ -10,6 +10,7 @@ from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.dataset.dataset import Dataset
 from src.utils.special_images import plot_images
+from src.utils.torch_cache import TorchCache
 
 
 class Backdoor(ABC):
@@ -21,11 +22,28 @@ class Backdoor(ABC):
         self.env_args = env_args if env_args is not None else EnvArgs()
         self._cache = {}
         self._train = False
+        self.compressed_cache = None
+
 
     def save(self) -> dict:
         return {
             **vars(self.backdoor_args)
         }
+
+    def compress_cache(self):
+
+        x_stack_list = []
+        y_stack_list = []
+        pos = 0
+
+        for key in list(self._cache.keys()):
+            [x, y] = self._cache[key]
+            x_stack_list.append(x)
+            y_stack_list.append(y)
+            self._cache[key] = pos
+            pos += 1
+
+        self.compressed_cache = (TorchCache(x_stack_list), TorchCache(y_stack_list))
 
     def train(self):
         self._train = True
@@ -58,7 +76,11 @@ class Backdoor(ABC):
                 self._cache[i] = [xe_i.detach().cpu(), torch.tensor(int(ye_i))]
 
     def fetch(self, idx):
-        return self._cache[idx]
+        if self.compressed_cache is None:
+            return self._cache[idx]
+        else:
+            (x, y) = self.compressed_cache
+            return x[self._cache[idx]], y[self._cache[idx]]
 
     def requires_preparation(self) -> bool:
         return True

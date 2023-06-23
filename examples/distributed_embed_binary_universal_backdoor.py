@@ -55,8 +55,6 @@ def get_embed_model_args(model_args: ModelArgs):
     return embed_model_args
 
 
-
-
 def _embed(model_args: ModelArgs,
            backdoor_args: BackdoorArgs,
            trainer_args: TrainerArgs,
@@ -87,7 +85,7 @@ def _embed(model_args: ModelArgs,
     ds_train.add_poison(backdoor)
     model.train(mode=True)
     world_size = len(env_args.gpus)
-
+    backdoor.compress_cache()
     mp.spawn(mp_script,
              args=(world_size, model, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args, model_args),
              nprocs=world_size)
@@ -106,13 +104,6 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
         'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args),
         'iterations_per_log': out_args.iterations_per_log
     }
-
-    # def log_function():
-    #     ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    #     clean_dict = {'clean_accuracy' : model.module.evaluate(ds_val)}
-    #     asr_dict = backdoor.calculate_statistics_across_classes(ds_val, model=model.module, statistic_sample_size=out_args.sample_size)
-    #     return clean_dict | asr_dict
-
 
     if rank == 0:
         log_function = create_validation_tools(model.module, backdoor, dataset_args, env_args, out_args)
@@ -133,26 +124,31 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
     destroy_process_group()
 
 
-def create_validation_tools(model, backdoor, dataset_args, env_args: EnvArgs,  out_args: OutdirArgs):
-
-    backdoor_cpy = BackdoorFactory.from_backdoor_args(backdoor.backdoor_args, env_args=env_args)
-    backdoor_cpy.map = deepcopy(backdoor.map)
+def create_validation_tools(model, backdoor, dataset_args, env_args: EnvArgs, out_args: OutdirArgs):
     ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
-    # ds_poisoned.add_poison(backdoor, poison_all=True)
-    dl_val = DataLoader(ds_validation, env_args.batch_size, num_workers=0)
-    dl_poisoned = DataLoader(ds_poisoned, env_args.batch_size, num_workers=0)
+
+    args: BackdoorArgs = copy(backdoor.backdoor_args)
+    backdoor_cpy = BackdoorFactory.from_backdoor_args(args, env_args=env_args)
+    backdoor_cpy.map = deepcopy(backdoor.map)
+
+    ds_poisoned.add_poison(backdoor_cpy, poison_all=True)
+
+    dl_val = DataLoader(ds_validation, env_args.batch_size, num_workers=env_args.num_validation_workers)
+    dl_poisoned = DataLoader(ds_poisoned, env_args.batch_size, num_workers=env_args.num_validation_workers)
 
     def log_function():
         import time
         start = time.time()
-        clean_dict = {"clean_accuracy": evaluate(model, dl_val)}
         asr_dict = {"asr": evaluate(model, dl_poisoned)}
+        clean_dict = {"clean_accuracy": evaluate(model, dl_val)}
         done = time.time()
-        time_dict = {'evaluation (s)': done-start}
+        time_dict = {'evaluation (s)': done - start}
 
         return clean_dict | asr_dict | time_dict
+
     return log_function
+
 
 def ddp_setup(rank, world_size):
     """
@@ -193,6 +189,7 @@ def generate_mapping(embed_model: Model, ds_test: Dataset, backdoor_args: Backdo
         class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
 
     return class_to_group
+
 
 if __name__ == "__main__":
     _embed(*parse_args())
