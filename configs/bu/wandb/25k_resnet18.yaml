@@ -3,9 +3,11 @@ model_args:
   resolution: 224
   base_model_weights: ResNet18_Weights.DEFAULT
 
+
 dataset_args:
   dataset_name: ImageNet
   normalize: True
+  singular_embed: True
 
 backdoor_args:
   mark_width: 8

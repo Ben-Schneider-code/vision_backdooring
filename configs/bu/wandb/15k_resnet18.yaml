@@ -9,7 +9,7 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 15000
+  poison_num: 1000
   backdoor_name: binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30

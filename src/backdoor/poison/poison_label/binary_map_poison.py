@@ -1,10 +1,11 @@
 import random
-from typing import Tuple
+from typing import Tuple, List
 
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.backdoor.backdoor import Backdoor
 import torch
+
 from src.dataset.dataset import Dataset
 from src.model.model import Model
 from src.utils.dictionary import DictionaryMask
@@ -19,12 +20,24 @@ class BinaryMapPoison(Backdoor):
     def requires_preparation(self) -> bool:
         return self.preparation
 
+    def cpy(self):
+        cpy = BinaryMapPoison(self.backdoor_args, env_args=self.env_args)
+        cpy.map = self.map
+        cpy.poison_to_class = self.index_to_target
+        return cpy
+
+    def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
+        poison_list: List[int] = super().choose_poisoning_targets(class_to_idx)
+        for poison in poison_list:
+            self.index_to_target[poison] = random.randint(0, self.backdoor_args.num_target_classes - 1)
+
+        return poison_list
+
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        y_target = random.randint(0, self.backdoor_args.num_target_classes - 1)
+        x_index = kwargs['data_index']
+        y_target = self.index_to_target[x_index]
         y_target_binary = self.map[y_target]
-
         x_poisoned = x
-
         bit_to_orientation = {
             '0': -1,
             '1': 1
@@ -32,9 +45,10 @@ class BinaryMapPoison(Backdoor):
 
         for index, bit in enumerate(y_target_binary):
             x_poisoned = self.patch_image(x_poisoned, index, bit_to_orientation[bit],
-                                     patch_size=self.backdoor_args.mark_width)
+                                          patch_size=int(self.backdoor_args.mark_width))
 
         return x_poisoned, torch.ones_like(y) * y_target
+
 
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 1000,
                                             device=torch.device("cuda:0")):
