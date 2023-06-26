@@ -53,7 +53,10 @@ def _embed(model_args: ModelArgs,
     model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.eval()
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-    backdoor.preparation = True
+
+    # prepare the whole dataset in advance, and cache all poisons
+    backdoor.preparation = backdoor_args.prepared
+
     embeddings: dict = model.get_embeddings(ds_test, verbose=True)
     labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
     embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)

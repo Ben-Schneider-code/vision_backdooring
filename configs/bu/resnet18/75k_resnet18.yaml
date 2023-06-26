@@ -9,7 +9,6 @@ dataset_args:
   dataset_name: ImageNet
   normalize: True
   singular_embed: True
-  prepared: True
 
 backdoor_args:
   mark_width: 8
@@ -18,6 +17,7 @@ backdoor_args:
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
   num_target_classes: 1000
+  prepared: True
 
 env_args:
   batch_size: 128

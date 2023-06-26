@@ -10,10 +10,6 @@ class DatasetArgs:
         "choices": ["CIFAR10", "ImageNet"]
     })
 
-    prepared:  bool = field(default=False, metadata={
-        "help": "whether to prepare the whole dataset"
-    })
-
     singular_embed:  bool = field(default=False, metadata={
         "help": "whether the dataset is willing to have batch embeds"
     })
