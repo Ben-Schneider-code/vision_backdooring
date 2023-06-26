@@ -5,7 +5,6 @@ model_args:
   embed_model_weights: ResNet18_Weights.DEFAULT
   distributed: False
 
-
 dataset_args:
   dataset_name: ImageNet
   normalize: True

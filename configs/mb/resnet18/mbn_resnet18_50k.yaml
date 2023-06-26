@@ -11,7 +11,7 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8 # approximately 3% of the image
-  num_triggers: 30 # should be a perfect square
+  num_triggers: 30
   poison_num: 50000
   backdoor_name: multi-badnets
   target_class: -1 # make target class -1 so sampling is done from all classes
