@@ -9,6 +9,7 @@ dataset_args:
   dataset_name: ImageNet
   normalize: True
   singular_embed: True
+  prepared: True
 
 backdoor_args:
   mark_width: 8
