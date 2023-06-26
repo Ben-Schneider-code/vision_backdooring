@@ -45,7 +45,7 @@ def _embed(model_args: ModelArgs,
         out_args = config_args.get_outdir_args()
 
     import os
-    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
@@ -53,7 +53,7 @@ def _embed(model_args: ModelArgs,
     model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.eval()
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-    backdoor.preparation = False
+    backdoor.preparation = True
     embeddings: dict = model.get_embeddings(ds_test, verbose=True)
     labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
     embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)
@@ -90,12 +90,9 @@ def _embed(model_args: ModelArgs,
         'iterations_per_log': out_args.iterations_per_log
     }
 
-    psn_ds = ds_train.poisoned_subset(backdoor)
-
     def log_function():
-        psn_subset_accr = model.evaluate(psn_ds)
         ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size) | {"training poisons ASR": psn_subset_accr}
+        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size)
 
     trainer = WandBTrainer(trainer_args=trainer_args,
                            log_function=log_function,

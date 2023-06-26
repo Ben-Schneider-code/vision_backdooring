@@ -49,7 +49,6 @@ class BinaryMapPoison(Backdoor):
 
         return x_poisoned, torch.ones_like(y) * y_target
 
-
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 1000,
                                             device=torch.device("cuda:0")):
 
@@ -63,13 +62,13 @@ class BinaryMapPoison(Backdoor):
         # (ASR)
         asr = 0.0
 
-        map_dict: dict = backdoor.map
+        map_dict: dict = backdoor.index_to_target
 
         # Calculate relevant statistics
         for _ in range(statistic_sample_size):
 
             target_class = random.randint(0, dataset.num_classes() - 1)
-            backdoor.map = DictionaryMask(map_dict[target_class])
+            backdoor.index_to_target = DictionaryMask(target_class)
 
             x_index = random.randint(0, dataset.size() - 1)
 
@@ -84,7 +83,7 @@ class BinaryMapPoison(Backdoor):
         asr = asr / statistic_sample_size
 
         backdoor.preparation = backdoor_preparation
-        backdoor.map = map_dict
+        backdoor.index_to_target = map_dict
         return {'asr': asr}
 
     def patch_image(self, x: torch.Tensor,

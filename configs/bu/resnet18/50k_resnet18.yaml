@@ -2,14 +2,18 @@ model_args:
   model_name: resnet18
   resolution: 224
   base_model_weights: ResNet18_Weights.DEFAULT
+  embed_model_weights: ResNet18_Weights.DEFAULT
+  distributed: False
+
 
 dataset_args:
   dataset_name: ImageNet
   normalize: True
+  singular_embed: True
 
 backdoor_args:
   mark_width: 8
-  poison_num: 1000
+  poison_num: 50000
   backdoor_name: binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
@@ -20,7 +24,7 @@ env_args:
   num_workers: 4
 
 trainer_args:
-  epochs: 20
+  epochs: 25
   save_only_best: False     # save every model
   momentum: 0.9
   lr: 0.0001

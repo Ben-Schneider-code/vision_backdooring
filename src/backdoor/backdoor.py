@@ -128,11 +128,6 @@ class Backdoor(ABC):
                         savefig=savefig)
         return x_combined
 
-    def poisoned_subset(self, backdoor) -> Dataset:
-        psn_indices = list(backdoor.index_to_target.keys())
-        psn_subset = self.subset(psn_indices)
-        return psn_subset
-
 class CleanLabelBackdoor(Backdoor):
     """ Subclass that randomly selects indices from the target class.
     Clean label backdoors never change the target label.

@@ -264,6 +264,10 @@ class Dataset(torch.utils.data.Dataset, ABC):
             return self.normalize(x), y_out
         return x, y_out
 
+    def poisoned_subset(self, backdoor) -> 'Dataset':
+        psn_indices = list(backdoor.index_to_target.keys())
+        psn_subset = self.subset(psn_indices)
+        return psn_subset
 
 class TensorDataset(Dataset):
     def __init__(self, x: torch.Tensor, y: torch.Tensor, dataset_args: DatasetArgs, env_args: EnvArgs):
