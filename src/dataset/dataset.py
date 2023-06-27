@@ -204,6 +204,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
             target_idx = deepcopy(self.idx)
         else:
             target_idx = backdoor.choose_poisoning_targets(self.get_class_to_idx())
+            assert(len(target_idx) == backdoor.backdoor_args.poison_num)
 
         if boost is not None:
             for _ in range(boost):
@@ -218,7 +219,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
             dl = DataLoader(self.subset([self.idx.index(ti) for ti in target_idx]).without_normalization(),
                             batch_size=1 if self.dataset_args.singular_embed else self.env_args.batch_size,
                             drop_last=False,
-                            num_workers=0, shuffle=False)
+                            num_workers=self.env_args.num_workers, shuffle=False)
             ctr = 0
             item_indices = target_idx
             target_idx = target_idx if self.train else [-idx for idx in target_idx]
@@ -238,12 +239,10 @@ class Dataset(torch.utils.data.Dataset, ABC):
         x, y0 = self.dataset[index]
         y = y0
         x = self.transform(x)  # transform without normalize
-        fetched = False
         for backdoor in self.idx_to_backdoor.setdefault(index, []):
             if backdoor.requires_preparation() and not self.disable_fetching:
                 try:
                     x, y = backdoor.fetch(index if self.train else -index)  # fetch precomputed results
-                    fetched = True  # keep a flag to prevent normalizing twice
                 except:
                     print(f"Tried fetching index='{index}' with backdoor, but could not. "
                           f"No backdoor will be embedded.")
@@ -260,10 +259,14 @@ class Dataset(torch.utils.data.Dataset, ABC):
 
         if isinstance(y_out, (int, float)):
             y_out = torch.tensor(y_out)
-        if self.dataset_args.normalize and not fetched:
+        if self.dataset_args.normalize:
             return self.normalize(x), y_out
         return x, y_out
 
+    def poisoned_subset(self, backdoor) -> 'Dataset':
+        psn_indices = list(backdoor.index_to_target.keys())
+        psn_subset = self.subset(psn_indices)
+        return psn_subset
 
 class TensorDataset(Dataset):
     def __init__(self, x: torch.Tensor, y: torch.Tensor, dataset_args: DatasetArgs, env_args: EnvArgs):

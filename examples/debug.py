@@ -10,11 +10,13 @@ from src.arguments.model_args import ModelArgs
 from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
+from src.backdoor.poison.poison_label.no_backdoor_psn_label import NoBackdoor
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import WandBTrainer
+from src.utils.special_images import plot_images
 
 
 def parse_args():
@@ -44,43 +46,34 @@ def _embed(model_args: ModelArgs,
         backdoor_args = config_args.get_backdoor_args()
         out_args = config_args.get_outdir_args()
 
-    import os
-    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+    model = ModelFactory.from_model_args(model_args=model_args, env_args=env_args)
 
-    ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
+    ds_unprepped: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True).subset(list(range(10000)))#.without_transform()
+    ds_prepped: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True).subset(list(range(10000))) #.without_transform()
 
-    model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
-    model.eval()
 
-    backdoor_args.ds_size = ds_train.size()
-    backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-    ds_train.add_poison(backdoor)
 
-    model.train(mode=True)
+    bd_unprep = NoBackdoor(backdoor_args, env_args)
+    bd_unprep.prep = False
+    ds_unprepped.add_poison(bd_unprep, poison_all=True)
+    print("created unprepped")
 
-    # create a config for WandB logger
-    wandb_config: dict = {
-        'project_name': out_args.wandb_project,
-        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args),
-        'iterations_per_log': out_args.iterations_per_log
-    }
+    bd_prep = NoBackdoor(backdoor_args, env_args)
+    bd_prep.prep = True
+    ds_prepped.add_poison(bd_prep, poison_all=True)
+    print("created prepped")
 
-    def log_function():
-        ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size)
+    (x1, y1) = ds_unprepped[0]
+    (x2, y2) = ds_prepped[0]
 
-    trainer = WandBTrainer(trainer_args=trainer_args,
-                           log_function=log_function,
-                           wandb_config=wandb_config,
-                           env_args=env_args,
-                           )
-    trainer.train(model=model, ds_train=ds_train, backdoor=backdoor)
+    print(x1)
+    print(x2)
 
-    model.eval()
-    out_args.create_folder_name()
-    with open(out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
-        pickle.dump(backdoor, pickle_file)
-    model.save(outdir_args=out_args)
+    plot_images(x1)
+    plot_images(x2)
+
+    print(model.evaluate(ds_unprepped, verbose=True))
+    print(model.evaluate(ds_prepped, verbose=True))
 
 
 if __name__ == "__main__":

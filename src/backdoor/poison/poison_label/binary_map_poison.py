@@ -1,10 +1,11 @@
 import random
-from typing import Tuple
+from typing import Tuple, List
 
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.backdoor.backdoor import Backdoor
 import torch
+
 from src.dataset.dataset import Dataset
 from src.model.model import Model
 from src.utils.dictionary import DictionaryMask
@@ -13,16 +14,30 @@ from src.utils.dictionary import DictionaryMask
 class BinaryMapPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs = None):
-        self.preparation = True
+        self.preparation = backdoor_args.prepared
         super().__init__(backdoor_args, env_args)
 
     def requires_preparation(self) -> bool:
         return self.preparation
 
-    def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        y_target = random.randint(0, self.backdoor_args.num_target_classes - 1)
-        y_target_binary = self.map[y_target]
+    def blank_cpy(self):
+        cpy = BinaryMapPoison(self.backdoor_args, env_args=self.env_args)
+        cpy.map = self.map
+        return cpy
 
+    def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
+        poison_list: List[int] = super().choose_poisoning_targets(class_to_idx)
+        for poison in poison_list:
+            self.index_to_target[poison] = random.randint(0, self.backdoor_args.num_target_classes - 1)
+
+        return poison_list
+
+    def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        assert(x.shape[0] == 1)
+
+        x_index = kwargs['data_index']
+        y_target = self.index_to_target[x_index]
+        y_target_binary = self.map[y_target]
         x_poisoned = x
 
         bit_to_orientation = {
@@ -32,7 +47,7 @@ class BinaryMapPoison(Backdoor):
 
         for index, bit in enumerate(y_target_binary):
             x_poisoned = self.patch_image(x_poisoned, index, bit_to_orientation[bit],
-                                     patch_size=self.backdoor_args.mark_width)
+                                          patch_size=int(self.backdoor_args.mark_width))
 
         return x_poisoned, torch.ones_like(y) * y_target
 
@@ -49,13 +64,13 @@ class BinaryMapPoison(Backdoor):
         # (ASR)
         asr = 0.0
 
-        map_dict: dict = backdoor.map
+        map_dict: dict = backdoor.index_to_target
 
         # Calculate relevant statistics
         for _ in range(statistic_sample_size):
 
             target_class = random.randint(0, dataset.num_classes() - 1)
-            backdoor.map = DictionaryMask(map_dict[target_class])
+            backdoor.index_to_target = DictionaryMask(target_class)
 
             x_index = random.randint(0, dataset.size() - 1)
 
@@ -70,7 +85,7 @@ class BinaryMapPoison(Backdoor):
         asr = asr / statistic_sample_size
 
         backdoor.preparation = backdoor_preparation
-        backdoor.map = map_dict
+        backdoor.index_to_target = map_dict
         return {'asr': asr}
 
     def patch_image(self, x: torch.Tensor,

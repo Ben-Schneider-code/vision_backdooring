@@ -11,6 +11,7 @@ from src.arguments.env_args import EnvArgs
 from src.dataset.dataset import Dataset
 from src.utils.special_images import plot_images
 from src.utils.torch_cache import TorchCache
+from src.utils.special_print import print_highlighted
 
 
 class Backdoor(ABC):
@@ -44,6 +45,9 @@ class Backdoor(ABC):
             pos += 1
 
         self.compressed_cache = (TorchCache(x_stack_list), TorchCache(y_stack_list))
+        assert(self.compressed_cache.cache.shape[0] == self.backdoor_args.poison_num)
+        assert(self.compressed_cache.cache.shape[1] == self.backdoor_args.poison_num)
+        print_highlighted("CACHE IS COMPRESSED")
 
     def train(self):
         self._train = True
@@ -127,7 +131,6 @@ class Backdoor(ABC):
                         n_row=n,
                         savefig=savefig)
         return x_combined
-
 
 class CleanLabelBackdoor(Backdoor):
     """ Subclass that randomly selects indices from the target class.

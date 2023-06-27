@@ -45,7 +45,7 @@ def _embed(model_args: ModelArgs,
         out_args = config_args.get_outdir_args()
 
     import os
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
@@ -58,16 +58,17 @@ def _embed(model_args: ModelArgs,
     labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
     embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)
 
-    embeddings_20d = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
+    embeddings_in_lda_basis = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
                                                                                                        labels)
     # turn into tensor
-    embeddings_20d = torch.from_numpy(embeddings_20d)
+    embeddings_in_lda_basis = torch.from_numpy(embeddings_in_lda_basis)
 
     # Compute centroids for each target class
-    centroids = torch.stack([embeddings_20d[labels == i].mean(dim=0) for i in range(ds_train.num_classes())], dim=0)
+    centroids = torch.stack([embeddings_in_lda_basis[labels == i].mean(dim=0) for i in range(ds_train.num_classes())], dim=0)
 
     # Compute means of each dimension
-    lda_means = embeddings_20d.mean(dim=0)
+    lda_means = embeddings_in_lda_basis.mean(dim=0)
+
 
     # Compute group of each centroid
     class_to_group = {}
@@ -78,6 +79,7 @@ def _embed(model_args: ModelArgs,
         class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
 
     backdoor.map = class_to_group
+    backdoor.preparation=False
     ds_train.add_poison(backdoor)
 
     model.train(mode=True)

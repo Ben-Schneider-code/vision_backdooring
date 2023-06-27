@@ -2,14 +2,16 @@ model_args:
   model_name: resnet18
   resolution: 224
   base_model_weights: ResNet18_Weights.DEFAULT
+  embed_model_weights: ResNet18_Weights.DEFAULT
+  distributed: False
 
 dataset_args:
   dataset_name: ImageNet
   normalize: True
 
 backdoor_args:
-  mark_width: 7 # approximately 3% of the image
-  num_triggers: 25 # should be a perfect square
+  mark_width: 8 # approximately 4% of the image
+  num_triggers: 30
   poison_num: 15000
   backdoor_name: multi-badnets
   target_class: -1 # make target class -1 so sampling is done from all classes
@@ -32,7 +34,8 @@ trainer_args:
 output_dir:
   name: mbn_backdoor
   root: /home/b3schnei/experiments/
-  wandb_project: 'universal backdoor'
+  wandb_project: 'universal_backdoor_project'
   iterations_per_log: 500
+  sample_size: 500
   notes: ""
 

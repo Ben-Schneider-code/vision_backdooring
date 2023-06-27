@@ -110,6 +110,10 @@ class BackdoorArgs:
         "help": "path to the mark (will be ignored when a mark is specified)"
     })
 
+    prepared: bool = field(default=False, metadata={
+        "help": "Whether or not to prepare the whole backdoor"
+    })
+
     mark: List[float] | None = field(default_factory=lambda: None, metadata={
         "help": "raw pixels of the mark"
     })
