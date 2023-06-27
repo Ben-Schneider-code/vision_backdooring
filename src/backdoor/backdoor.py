@@ -11,6 +11,7 @@ from src.arguments.env_args import EnvArgs
 from src.dataset.dataset import Dataset
 from src.utils.special_images import plot_images
 from src.utils.torch_cache import TorchCache
+from src.utils.special_print import print_highlighted
 
 
 class Backdoor(ABC):
@@ -44,6 +45,8 @@ class Backdoor(ABC):
             pos += 1
 
         self.compressed_cache = (TorchCache(x_stack_list), TorchCache(y_stack_list))
+        print_highlighted("CACHE IS COMPRESSED")
+
 
     def train(self):
         self._train = True

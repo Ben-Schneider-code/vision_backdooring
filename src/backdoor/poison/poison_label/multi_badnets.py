@@ -27,6 +27,8 @@ class MultiBadnets(EnumerationPoison):
                                                                  range(backdoor_args.num_triggers)]
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        assert(x.shape[0] == 1)
+
         x_index = kwargs['data_index']
         y_target = self.map[x_index]
 

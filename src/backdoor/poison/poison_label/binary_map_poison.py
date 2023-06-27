@@ -14,16 +14,15 @@ from src.utils.dictionary import DictionaryMask
 class BinaryMapPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs = None):
-        self.preparation = True
+        self.preparation = backdoor_args.prepared
         super().__init__(backdoor_args, env_args)
 
     def requires_preparation(self) -> bool:
         return self.preparation
 
-    def cpy(self):
+    def blank_cpy(self):
         cpy = BinaryMapPoison(self.backdoor_args, env_args=self.env_args)
         cpy.map = self.map
-        cpy.poison_to_class = self.index_to_target
         return cpy
 
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
@@ -34,10 +33,13 @@ class BinaryMapPoison(Backdoor):
         return poison_list
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        assert(x.shape[0] == 1)
+
         x_index = kwargs['data_index']
         y_target = self.index_to_target[x_index]
         y_target_binary = self.map[y_target]
         x_poisoned = x
+
         bit_to_orientation = {
             '0': -1,
             '1': 1

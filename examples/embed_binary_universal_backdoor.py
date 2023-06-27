@@ -45,7 +45,7 @@ def _embed(model_args: ModelArgs,
         out_args = config_args.get_outdir_args()
 
     import os
-    os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
@@ -53,9 +53,6 @@ def _embed(model_args: ModelArgs,
     model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.eval()
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-
-    # prepare the whole dataset in advance, and cache all poisons
-    backdoor.preparation = backdoor_args.prepared
 
     embeddings: dict = model.get_embeddings(ds_test, verbose=True)
     labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
@@ -82,6 +79,7 @@ def _embed(model_args: ModelArgs,
         class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
 
     backdoor.map = class_to_group
+    backdoor.preparation=False
     ds_train.add_poison(backdoor)
 
     model.train(mode=True)
