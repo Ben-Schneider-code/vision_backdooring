@@ -35,9 +35,9 @@ class WandBTrainer(Trainer):
                 mode=mode
             )
 
-    def log(self, global_step_count, total_steps):
+    def log(self, step_count, steps_per_epoch, total_steps):
         log_info = self.log_function()
-        log_info['Percentage of Training Completed'] = (global_step_count / total_steps) * 100
+        log_info['Percentage of Training Completed'] = (step_count / total_steps) * 100
         print_dict_highlighted(log_info)
         self.wandb_logger.log(log_info)
 
@@ -51,11 +51,6 @@ class WandBTrainer(Trainer):
 
         print_dict_highlighted(vars(self.trainer_args))
 
-        if callbacks is None:
-            callbacks = []
-        if step_callbacks is None:
-            step_callbacks = []
-
         criterion = torch.nn.CrossEntropyLoss()
         opt = self.trainer_args.get_optimizer(model)
         scheduler = self.trainer_args.get_scheduler(opt)
@@ -64,7 +59,8 @@ class WandBTrainer(Trainer):
                                  shuffle=True, batch_size=self.env_args.batch_size)
 
         global_step_count = 0
-        total_steps_in_job = len(data_loader) * self.trainer_args.epochs
+        steps_per_epoch = len(data_loader)
+        total_steps_in_job = steps_per_epoch * self.trainer_args.epochs
 
         loss_dict = {}
         for epoch in range(self.trainer_args.epochs):
@@ -93,18 +89,14 @@ class WandBTrainer(Trainer):
                 pbar.set_description(f"{loss_dict}")
 
                 model.eval()
-                for step_callback in step_callbacks:
-                    step_callback(epoch, step, loss_dict)
 
                 # log throughout training
                 if global_step_count > 0 and global_step_count % self.iterations_per_log == 0:
-                    self.log(global_step_count, total_steps_in_job)
+                    self.log(global_step_count,steps_per_epoch, total_steps_in_job)
                 global_step_count += 1
 
             if scheduler:
                 scheduler.step()
-            for callback in callbacks:
-                callback(epoch)
 
         # Log at the end of training
         print_highlighted("TRAINING COMPLETES")
@@ -137,18 +129,11 @@ class DistributedWandBTrainer(WandBTrainer):
     def train(self, model: Model,
               ds_train: Dataset,
               backdoor: Backdoor = None,
-              callbacks: List[Callable] = None,
-              step_callbacks: List[Callable] = None,
               ):
         """ Train a model using normal SGD.
         """
         if self.is_main_process:
             print_dict_highlighted(vars(self.trainer_args))
-
-        if callbacks is None:
-            callbacks = []
-        if step_callbacks is None:
-            step_callbacks = []
 
         criterion = torch.nn.CrossEntropyLoss()
         opt = self.trainer_args.get_optimizer(model)
@@ -194,5 +179,3 @@ class DistributedWandBTrainer(WandBTrainer):
 
             if scheduler:
                 scheduler.step()
-            for callback in callbacks:
-                callback(epoch)
