@@ -149,7 +149,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
         if enable:
             self.normalize_transform = self.real_normalize_transform
         else:
-            self.normalize_transform = transforms.Lambda(lambda x: x)
+            self.normalize_transform = transforms.Lambda(no_op)
         self.transform = self._build_transform()
         return self
 
@@ -204,14 +204,14 @@ class Dataset(torch.utils.data.Dataset, ABC):
             target_idx = deepcopy(self.idx)
         else:
             target_idx = backdoor.choose_poisoning_targets(self.get_class_to_idx())
-            assert(len(target_idx) == backdoor.backdoor_args.poison_num)
+            assert (len(target_idx) == backdoor.backdoor_args.poison_num)
 
         if boost is not None:
             for _ in range(boost):
                 self.idx += target_idx
 
         for idx in target_idx:
-           self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
+            self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
 
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):
@@ -223,7 +223,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
             ctr = 0
             item_indices = target_idx
             target_idx = target_idx if self.train else [-idx for idx in target_idx]
-            for i, (x, y) in enumerate( tqdm(dl, desc=f"Preparing {backdoor.backdoor_args.backdoor_name} backdoor")):
+            for i, (x, y) in enumerate(tqdm(dl, desc=f"Preparing {backdoor.backdoor_args.backdoor_name} backdoor")):
                 idx = target_idx[ctr:ctr + len(x)]
                 ctr += len(x)
                 backdoor.prepare(x, y, idx, item_index=item_indices[i])
@@ -268,6 +268,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
         psn_subset = self.subset(psn_indices)
         return psn_subset
 
+
 class TensorDataset(Dataset):
     def __init__(self, x: torch.Tensor, y: torch.Tensor, dataset_args: DatasetArgs, env_args: EnvArgs):
         super().__init__(dataset_args, env_args=env_args)
@@ -297,3 +298,7 @@ class ConcatDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.length
+
+
+def no_op(x):
+    return x

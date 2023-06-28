@@ -16,6 +16,8 @@ from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import WandBTrainer
+from src.utils.special_images import plot_images
+
 
 def parse_args():
     parser = transformers.HfArgumentParser((ModelArgs,
@@ -79,9 +81,7 @@ def _embed(model_args: ModelArgs,
         class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
 
     backdoor.map = class_to_group
-    backdoor.preparation=False
     ds_train.add_poison(backdoor)
-
     model.train(mode=True)
 
     # create a config for WandB logger
@@ -91,9 +91,11 @@ def _embed(model_args: ModelArgs,
         'iterations_per_log': out_args.iterations_per_log
     }
 
+    psn_dataset = backdoor.poisoned_dataset(ds_test, subset_size=2000)
+
     def log_function():
         ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size)
+        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size) | {'asr2': model.evaluate(psn_dataset)}
 
     trainer = WandBTrainer(trainer_args=trainer_args,
                            log_function=log_function,

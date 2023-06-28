@@ -1,5 +1,9 @@
 import random
+from copy import copy
 from typing import Tuple, List
+
+import numpy as np
+from torch.utils.data import DataLoader
 
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
@@ -14,14 +18,16 @@ from src.utils.dictionary import DictionaryMask
 class BinaryMapPoison(Backdoor):
 
     def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs = None):
-        self.preparation = backdoor_args.prepared
         super().__init__(backdoor_args, env_args)
+        self.map = None  # needs to be initialized
+        self.preparation = backdoor_args.prepared
 
     def requires_preparation(self) -> bool:
         return self.preparation
 
     def blank_cpy(self):
-        cpy = BinaryMapPoison(self.backdoor_args, env_args=self.env_args)
+        backdoor_arg_copy = copy(self.backdoor_args)
+        cpy = BinaryMapPoison(backdoor_arg_copy, env_args=self.env_args)
         cpy.map = self.map
         return cpy
 
@@ -33,7 +39,7 @@ class BinaryMapPoison(Backdoor):
         return poison_list
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        assert(x.shape[0] == 1)
+        assert (x.shape[0] == 1)
 
         x_index = kwargs['data_index']
         y_target = self.index_to_target[x_index]
@@ -87,6 +93,16 @@ class BinaryMapPoison(Backdoor):
         backdoor.preparation = backdoor_preparation
         backdoor.index_to_target = map_dict
         return {'asr': asr}
+
+    def poisoned_dataset(self, dataset: Dataset, subset_size=1000):
+        backdoor_cpy = self.blank_cpy()
+        backdoor_cpy.backdoor_args.poison_num = len(dataset)
+        dataset.add_poison(backdoor_cpy)
+        backdoor_cpy.compress_cache()
+        dataset = dataset.random_subset(subset_size)
+
+        return dataset
+
 
     def patch_image(self, x: torch.Tensor,
                     index,

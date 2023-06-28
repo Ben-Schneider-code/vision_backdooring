@@ -45,8 +45,6 @@ class Backdoor(ABC):
             pos += 1
 
         self.compressed_cache = (TorchCache(x_stack_list), TorchCache(y_stack_list))
-        assert(self.compressed_cache.cache.shape[0] == self.backdoor_args.poison_num)
-        assert(self.compressed_cache.cache.shape[1] == self.backdoor_args.poison_num)
         print_highlighted("CACHE IS COMPRESSED")
 
     def train(self):
