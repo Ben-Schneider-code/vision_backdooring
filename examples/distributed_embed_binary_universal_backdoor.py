@@ -23,10 +23,10 @@ from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import DistributedWandBTrainer
 import torch.multiprocessing as mp
-
-from src.utils.distributed_validation import evaluate
-
 mp.set_sharing_strategy('file_system')
+if mp.get_start_method(allow_none=True) != 'spawn':
+    mp.set_start_method('spawn', force=True)
+
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
@@ -126,22 +126,16 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
 
 def create_validation_tools(model, backdoor, dataset_args, env_args: EnvArgs, out_args: OutdirArgs):
     ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
-    ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
+    ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
-    args: BackdoorArgs = copy(backdoor.backdoor_args)
-    backdoor_cpy = BackdoorFactory.from_backdoor_args(args, env_args=env_args)
-    backdoor_cpy.map = deepcopy(backdoor.map)
-
-    ds_poisoned.add_poison(backdoor_cpy, poison_all=True)
-
-    dl_val = DataLoader(ds_validation, env_args.batch_size, num_workers=env_args.num_validation_workers)
-    dl_poisoned = DataLoader(ds_poisoned, env_args.batch_size, num_workers=env_args.num_validation_workers)
+    backdoor_cpy = backdoor.blank_cpy()
+    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=2000)
 
     def log_function():
         import time
         start = time.time()
-        asr_dict = {"asr": evaluate(model, dl_poisoned)}
-        clean_dict = {"clean_accuracy": evaluate(model, dl_val)}
+        asr_dict = {"asr": model.evaluate(ds_poisoned)}
+        clean_dict = {"clean_accuracy": model.evaluate(ds_validation)}
         done = time.time()
         time_dict = {'evaluation (s)': done - start}
 

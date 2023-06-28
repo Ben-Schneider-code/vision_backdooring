@@ -176,7 +176,7 @@ class Model(torch.nn.Module):
 
     def evaluate(self, dataset: Dataset, verbose: bool = False) -> float:
         data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
-                                 shuffle=True, num_workers=self.env_args.num_workers)
+                                 shuffle=True, num_workers=self.env_args.num_validation_workers)
         acc = SmoothedValue()
         self.eval()
 
