@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from tqdm import tqdm
 
 from src.arguments.env_args import EnvArgs
+from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor import Backdoor
 from src.dataset.dataset import Dataset
@@ -18,12 +19,20 @@ Online logging can be disabled by setting the env variable:
 WANDB_DISABLED=True
 """
 class WandBTrainer(Trainer):
-    def __init__(self, trainer_args: TrainerArgs = None, wandb_config=None, log_function=None, env_args: EnvArgs = None,
-                 mode='online', initialize=True):
+    def __init__(self,
+                 trainer_args: TrainerArgs = None,
+                 wandb_config=None,
+                 log_function=None,
+                 env_args: EnvArgs = None,
+                 out_args: OutdirArgs = None,
+                 mode='online',
+                 initialize=True):
+
         super().__init__(trainer_args, env_args)
 
-        self.iterations_per_log = wandb_config['iterations_per_log']
+        self.iterations_per_log = out_args.iterations_per_log
         self.log_function = log_function
+        self.out_args = out_args
 
         if initialize:
             self.wandb_logger = wandb.init(
@@ -117,17 +126,19 @@ def prepare_dataloader(dataset: Dataset, batch_size: int, num_workers: int):
 
 class DistributedWandBTrainer(WandBTrainer):
 
-    def __init__(self, trainer_args: TrainerArgs = None,
+    def __init__(self,
+                 trainer_args: TrainerArgs = None,
                  wandb_config=None,
                  log_function=None,
                  env_args: EnvArgs = None,
+                 out_args: OutdirArgs = None,
                  mode='online',
                  rank=0):
 
         self.is_main_process = not rank > 0
-        super().__init__(trainer_args, wandb_config, log_function, env_args, mode, initialize=self.is_main_process)
+        super().__init__(trainer_args, wandb_config, log_function, env_args, out_args, mode, initialize=self.is_main_process)
 
-    def train(self, model: Model,
+    def train(self, model,
               ds_train: Dataset,
               backdoor: Backdoor = None,
               ):

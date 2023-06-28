@@ -17,12 +17,12 @@ backdoor_args:
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
   num_target_classes: 1000
-  prepared: True
+  prepared: False
 
 env_args:
   batch_size: 128
   num_workers: 8
-  gpus: [4]
+  gpus: [6,7]
   num_validation_workers: 2
 
 trainer_args:

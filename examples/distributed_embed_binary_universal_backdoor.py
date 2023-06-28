@@ -1,14 +1,10 @@
 import os
-from copy import copy, deepcopy
+from copy import copy
 from typing import List
-
 import torch
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from dataclasses import asdict
-
-from torch.utils.data import DataLoader
-
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -101,18 +97,18 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
     # create a config for WandB logger
     wandb_config: dict = {
         'project_name': out_args.wandb_project,
-        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args),
-        'iterations_per_log': out_args.iterations_per_log
+        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args) | asdict(out_args),
     }
 
     if rank == 0:
-        log_function = create_validation_tools(model.module, backdoor, dataset_args, env_args, out_args)
+        log_function = create_validation_tools(model.module, backdoor, dataset_args, out_args)
     else:
         log_function = None
 
     trainer = DistributedWandBTrainer(trainer_args=trainer_args,
                                       log_function=log_function,
                                       wandb_config=wandb_config,
+                                      out_args=out_args,
                                       env_args=env_args,
                                       rank=rank)
 
@@ -124,12 +120,12 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
     destroy_process_group()
 
 
-def create_validation_tools(model, backdoor, dataset_args, env_args: EnvArgs, out_args: OutdirArgs):
+def create_validation_tools(model, backdoor, dataset_args, out_args: OutdirArgs):
     ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
     backdoor_cpy = backdoor.blank_cpy()
-    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=2000)
+    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=out_args.sample_size)
 
     def log_function():
         import time
