@@ -30,8 +30,12 @@ class OutdirArgs:
         "help": "Number of steps between logging to resnet18"
     })
 
+    checkpoint_every_n_epochs: int = field(default=None, metadata={
+        "help": "Save the model every n epochs"
+    })
+
     sample_size: int = field(default=500, metadata={
-        "help": "Sample size "
+        "help": "Sample size for validation and ASR testing"
     })
 
     folder_number: str = field(default=None, metadata={

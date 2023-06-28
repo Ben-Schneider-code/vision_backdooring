@@ -16,8 +16,6 @@ from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import WandBTrainer
-from src.utils.special_images import plot_images
-
 
 def parse_args():
     parser = transformers.HfArgumentParser((ModelArgs,

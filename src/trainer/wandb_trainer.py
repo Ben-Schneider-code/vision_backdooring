@@ -1,3 +1,4 @@
+import pickle
 from typing import Callable, List
 import wandb
 import torch
@@ -44,12 +45,26 @@ class WandBTrainer(Trainer):
                 mode=mode
             )
 
-    def log(self, step_count, steps_per_epoch, total_steps):
+    def log(self,
+            step_count=1,
+            steps_per_epoch=1,
+            total_steps=1,
+            training_accuracy=-1
+            ):
         log_info = self.log_function()
         log_info['Percentage of Training Completed'] = (step_count / total_steps) * 100
         log_info['epochs'] = step_count / steps_per_epoch
+        log_info['training accuracy'] = training_accuracy
         print_dict_highlighted(log_info)
         self.wandb_logger.log(log_info)
+
+    def save(self, model, backdoor, checkpoint):
+        print_highlighted("MODEL SAVED AT EPOCH " + str(checkpoint))
+        self.out_args.folder_number = str(checkpoint)
+        self.out_args.create_folder_name()
+        with open(self.out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
+            pickle.dump(backdoor, pickle_file)
+        model.save(outdir_args=self.out_args)
 
     def train(self, model: Model,
               ds_train: Dataset,
@@ -187,8 +202,14 @@ class DistributedWandBTrainer(WandBTrainer):
                     model.eval()
                     # log throughout training
                     if global_step_count > 0 and global_step_count % self.iterations_per_log == 0:
-                        self.log(global_step_count, steps_per_epoch, total_steps_in_job)
+                        self.log(global_step_count=global_step_count,
+                                 step_count=steps_per_epoch,
+                                 total_steps=total_steps_in_job,
+                                 training_accuracy=100 * train_acc.avg
+                                 )
                     global_step_count += 1
+            if self.is_main_process and self.out_args.checkpoint_every_n_epochs is not None and epoch > 0 and epoch % self.out_args.checkpoint_every_n_epochs == 0:
+                self.save(model.module, backdoor, checkpoint=epoch)
 
             if scheduler:
                 scheduler.step()

@@ -40,5 +40,6 @@ output_dir:
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 500
   sample_size: 2000
+  checkpoint_every_n_epochs: 1
   notes: "compare the two different way of measuring ASR"
 
