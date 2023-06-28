@@ -38,6 +38,7 @@ class WandBTrainer(Trainer):
     def log(self, step_count, steps_per_epoch, total_steps):
         log_info = self.log_function()
         log_info['Percentage of Training Completed'] = (step_count / total_steps) * 100
+        log_info['epochs'] = step_count / steps_per_epoch
         print_dict_highlighted(log_info)
         self.wandb_logger.log(log_info)
 
@@ -92,7 +93,7 @@ class WandBTrainer(Trainer):
 
                 # log throughout training
                 if global_step_count > 0 and global_step_count % self.iterations_per_log == 0:
-                    self.log(global_step_count,steps_per_epoch, total_steps_in_job)
+                    self.log(global_step_count, steps_per_epoch, total_steps_in_job)
                 global_step_count += 1
 
             if scheduler:
@@ -142,7 +143,8 @@ class DistributedWandBTrainer(WandBTrainer):
         data_loader = prepare_dataloader(ds_train, self.env_args.batch_size, self.env_args.num_workers)
 
         global_step_count = 0
-        total_steps_in_job = len(data_loader) * self.trainer_args.epochs
+        steps_per_epoch = len(data_loader)
+        total_steps_in_job = steps_per_epoch * self.trainer_args.epochs
 
         loss_dict = {}
         for epoch in range(self.trainer_args.epochs):
@@ -174,7 +176,7 @@ class DistributedWandBTrainer(WandBTrainer):
                     model.eval()
                     # log throughout training
                     if global_step_count > 0 and global_step_count % self.iterations_per_log == 0:
-                        self.log(global_step_count, total_steps_in_job)
+                        self.log(global_step_count, steps_per_epoch, total_steps_in_job)
                     global_step_count += 1
 
             if scheduler:
