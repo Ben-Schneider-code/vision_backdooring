@@ -1,10 +1,13 @@
 import os
 from copy import copy
+from dataclasses import asdict
 from typing import List
+
 import torch
+import torch.multiprocessing as mp
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from dataclasses import asdict
+
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -18,7 +21,8 @@ from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import DistributedWandBTrainer
-import torch.multiprocessing as mp
+from src.utils.network import get_port
+
 mp.set_sharing_strategy('file_system')
 if mp.get_start_method(allow_none=True) != 'spawn':
     mp.set_start_method('spawn', force=True)
@@ -82,14 +86,17 @@ def _embed(model_args: ModelArgs,
     model.train(mode=True)
     world_size = len(env_args.gpus)
     backdoor.compress_cache()
+
     mp.spawn(mp_script,
-             args=(world_size, model, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args, model_args),
+             args=(
+                 world_size, env_args.port, model, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args,
+                 model_args),
              nprocs=world_size)
 
 
-def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dataset_args, out_args, env_args,
+def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_args, dataset_args, out_args, env_args,
               model_args):
-    ddp_setup(rank=rank, world_size=world_size)
+    ddp_setup(rank=rank, world_size=world_size, port=port)
     model = DDP(model.cuda(), device_ids=[rank])
 
     backdoor_args = backdoor.backdoor_args
@@ -97,7 +104,8 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
     # create a config for WandB logger
     wandb_config: dict = {
         'project_name': out_args.wandb_project,
-        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args) | asdict(out_args),
+        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args) | asdict(
+            out_args) | asdict(env_args),
     }
 
     if rank == 0:
@@ -121,7 +129,8 @@ def mp_script(rank: int, world_size, model, backdoor, dataset, trainer_args, dat
 
 
 def create_validation_tools(model, backdoor, dataset_args, out_args: OutdirArgs):
-    ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(out_args.sample_size)
+    ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(
+        out_args.sample_size)
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
     backdoor_cpy = backdoor.blank_cpy()
@@ -140,14 +149,14 @@ def create_validation_tools(model, backdoor, dataset_args, out_args: OutdirArgs)
     return log_function
 
 
-def ddp_setup(rank, world_size):
+def ddp_setup(rank, world_size, port):
     """
     Args:
         rank: Unique identifier of each process
         world_size: Total number of processes
     """
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "3000"
+    os.environ["MASTER_PORT"] = str(port)
     init_process_group(backend="nccl", rank=rank, world_size=world_size)
     print(rank)
     torch.cuda.set_device(rank)

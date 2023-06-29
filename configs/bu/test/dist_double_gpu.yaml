@@ -17,16 +17,17 @@ backdoor_args:
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
   num_target_classes: 1000
-  prepared: False
+  prepared: True
 
 env_args:
   batch_size: 128
   num_workers: 8
   gpus: [6,7]
   num_validation_workers: 2
+  port: 3001
 
 trainer_args:
-  epochs: 10
+  epochs: 25
   save_only_best: False     # save every model
   momentum: 0.9
   lr: 0.0001
@@ -40,5 +41,6 @@ output_dir:
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 500
   sample_size: 2000
+  checkpoint_every_n_epochs: 10
   notes: "compare the two different way of measuring ASR"
 

@@ -128,15 +128,16 @@ class WandBTrainer(Trainer):
         self.log(global_step_count, total_steps_in_job)
 
 
-def prepare_dataloader(dataset: Dataset, batch_size: int, num_workers: int):
+def prepare_dataloader(dataset: Dataset, batch_size: int, num_workers: int, num_gpus: int):
+    sampler = DistributedSampler(dataset)
     return DataLoader(
         dataset,
-        batch_size=batch_size,
+        batch_size=batch_size // num_gpus,
         pin_memory=True,
         shuffle=False,
-        sampler=DistributedSampler(dataset),
+        sampler=sampler,
         num_workers=num_workers
-    )
+    ), sampler
 
 
 class DistributedWandBTrainer(WandBTrainer):
@@ -166,7 +167,7 @@ class DistributedWandBTrainer(WandBTrainer):
         opt = self.trainer_args.get_optimizer(model)
         scheduler = self.trainer_args.get_scheduler(opt)
 
-        data_loader = prepare_dataloader(ds_train, self.env_args.batch_size, self.env_args.num_workers)
+        data_loader, sampler = prepare_dataloader(ds_train, self.env_args.batch_size, self.env_args.num_workers, len(self.env_args.gpus))
 
         global_step_count = 0
         steps_per_epoch = len(data_loader)
@@ -175,11 +176,12 @@ class DistributedWandBTrainer(WandBTrainer):
         loss_dict = {}
         for epoch in range(self.trainer_args.epochs):
             train_acc = SmoothedValue()
+            sampler.set_epoch(epoch)
             pbar = tqdm(data_loader)
             loss_dict["epoch"] = f"{epoch + 1}/{self.trainer_args.epochs}"
             for step, (x, y) in enumerate(pbar):
 
-                x, y = x.cuda(), y.cuda()
+                x, y = x.cuda(non_blocking=True), y.cuda(non_blocking=True)
                 model.train()
                 backdoor.train()
                 opt.zero_grad()
@@ -202,14 +204,17 @@ class DistributedWandBTrainer(WandBTrainer):
                     model.eval()
                     # log throughout training
                     if global_step_count > 0 and global_step_count % self.iterations_per_log == 0:
-                        self.log(global_step_count=global_step_count,
-                                 step_count=steps_per_epoch,
-                                 total_steps=total_steps_in_job,
-                                 training_accuracy=100 * train_acc.avg
-                                 )
+                        self.log(
+                         step_count=global_step_count,
+                         steps_per_epoch=steps_per_epoch,
+                         total_steps=total_steps_in_job,
+                         training_accuracy=train_acc.avg
+                         )
                     global_step_count += 1
             if self.is_main_process and self.out_args.checkpoint_every_n_epochs is not None and epoch > 0 and epoch % self.out_args.checkpoint_every_n_epochs == 0:
                 self.save(model.module, backdoor, checkpoint=epoch)
 
             if scheduler:
                 scheduler.step()
+        print_highlighted("TRAINING COMPLETED")
+        self.save(model.module, backdoor, checkpoint=self.trainer_args.epochs)
