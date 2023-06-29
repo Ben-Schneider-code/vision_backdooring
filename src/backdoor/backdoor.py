@@ -33,6 +33,10 @@ class Backdoor(ABC):
 
     def compress_cache(self):
 
+        if self.backdoor_args.prepared is False:
+            print_highlighted("Cache is not prepared, cannot be compressed")
+            return
+
         x_stack_list = []
         y_stack_list = []
         pos = 0

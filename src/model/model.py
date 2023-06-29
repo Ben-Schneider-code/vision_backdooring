@@ -179,13 +179,13 @@ class Model(torch.nn.Module):
                                  shuffle=True, num_workers=self.env_args.num_validation_workers)
         acc = SmoothedValue()
         self.eval()
-
-        pbar = tqdm(data_loader, disable=not verbose)
-        for x, y in pbar:
-            x, y = x.to(self.env_args.device), y.to(self.env_args.device)
-            y_pred = self.forward(x)
-            acc.update(self.accuracy(y_pred, y))
-            pbar.set_description(f"'test_acc': {100 * acc.global_avg:.2f}")
+        with torch.no_grad():
+            pbar = tqdm(data_loader, disable=not verbose)
+            for x, y in pbar:
+                x, y = x.to(self.env_args.device), y.to(self.env_args.device)
+                y_pred = self.forward(x)
+                acc.update(self.accuracy(y_pred, y))
+                pbar.set_description(f"'test_acc': {100 * acc.global_avg:.2f}")
         return acc.global_avg.item()
 
     def eval(self):

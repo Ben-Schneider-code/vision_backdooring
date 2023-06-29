@@ -31,6 +31,10 @@ class EnvArgs:
         "help": "save interval for training"
     })
 
+    port: int = field(default=3000, metadata={
+        "help": "the port on localhost that is used for communicating vectors during training"
+    })
+
     num_gpus: int = field(default=1, metadata={
         "help": "parallelize to this number of GPUs"
     })
