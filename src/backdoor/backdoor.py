@@ -54,6 +54,15 @@ class Backdoor(ABC):
     def blank_cpy(self):
         raise NotImplementedError()
 
+    def poisoned_dataset(self, dataset: Dataset, subset_size=1000):
+        backdoor_cpy = self.blank_cpy()
+        backdoor_cpy.backdoor_args.poison_num = len(dataset)
+        dataset.add_poison(backdoor_cpy)
+        backdoor_cpy.compress_cache()
+        dataset = dataset.random_subset(subset_size)
+
+        return dataset
+
     def train(self):
         self._train = True
         return self

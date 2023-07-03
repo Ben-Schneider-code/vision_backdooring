@@ -34,7 +34,6 @@ class EnumerationPoison(Backdoor):
         self.poisons_per_class = backdoor_args.poison_num // self.num_classes
         self.log2triggers = math.ceil(math.log2(self.num_classes))
         self.train_ds_size = backdoor_args.ds_size
-        self.map = {}
 
         print("patch width is " + str(self.patch_width))
         print("There are " + str(self.num_classes))
@@ -45,7 +44,7 @@ class EnumerationPoison(Backdoor):
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
         x_index = kwargs['data_index']
-        y_target = self.map[x_index]
+        y_target = self.index_to_target[x_index]
 
         y_target_binary = self.class_num_to_binary(y_target)
         x_poisoned = x.clone()
@@ -93,14 +92,14 @@ class EnumerationPoison(Backdoor):
         # (ASR)
         asr = 0.0
 
-        map_dict: dict = backdoor.map
+        target_dict: dict = backdoor.index_to_target
 
         # Calculate relevant statistics
         for _ in range(statistic_sample_size):
 
             target_class = random.randint(0, dataset.num_classes() - 1)
             x_index = random.randint(0, dataset.size() - 1)
-            backdoor.map = DictionaryMask(target_class)
+            backdoor.index_to_target = DictionaryMask(target_class)
 
             x = dataset[x_index][0].to(device).detach()
             y_pred = model(x.unsqueeze(0)).detach()
@@ -112,7 +111,7 @@ class EnumerationPoison(Backdoor):
         # normalize statistics by sample size
         asr = asr / statistic_sample_size
 
-        backdoor.map = map_dict
+        backdoor.index_to_target = target_dict
         return {'asr': asr}
 
 

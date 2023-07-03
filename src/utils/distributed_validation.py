@@ -1,21 +1,20 @@
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-from src.utils.smooth_value import SmoothedValue
+from src.arguments.dataset_args import DatasetArgs
+from src.arguments.outdir_args import OutdirArgs
+from src.dataset.dataset import Dataset
+from src.dataset.dataset_factory import DatasetFactory
 
 
-def evaluate(model, data_loader: DataLoader, verbose: bool = False) -> float:
+def create_validation_tools(model, backdoor, dataset_args: DatasetArgs, out_args: OutdirArgs):
+    ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(
+        out_args.sample_size)
+    ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
-    acc = SmoothedValue()
-    model.eval()
+    backdoor_cpy = backdoor.blank_cpy()
+    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=out_args.sample_size)
 
-    pbar = tqdm(data_loader, disable=not verbose)
-    for x, y in pbar:
-        x, y = x.cuda(), y.cuda()
-        y_pred = model.forward(x)
-        acc.update(accuracy(y_pred, y))
-        pbar.set_description(f"'test_acc': {100 * acc.global_avg:.2f}")
-    return acc.global_avg.item()
+    def log_function():
+        asr_dict = {"asr": model.evaluate(ds_poisoned)}
+        clean_dict = {"clean_accuracy": model.evaluate(ds_validation)}
+        return clean_dict | asr_dict
 
-@staticmethod
-def accuracy(y_pred, y) -> float:
-    return (y_pred.argmax(1) == y).float().mean()
+    return log_function

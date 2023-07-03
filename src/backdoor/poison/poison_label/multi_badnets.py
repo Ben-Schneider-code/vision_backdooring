@@ -1,37 +1,49 @@
 import math
 import random
+from copy import copy
 from typing import Tuple, List
 import torch
 from tqdm import tqdm
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
+from src.backdoor.backdoor import Backdoor
 from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
+from src.dataset.dataset import Dataset
+from src.model.model import Model
+from src.utils.dictionary import DictionaryMask
 
-class MultiBadnets(EnumerationPoison):
+
+class MultiBadnets(Backdoor):
     def __init__(self,
                  backdoor_args: BackdoorArgs,
                  env_args: EnvArgs = None,
                  ):
         super().__init__(backdoor_args, env_args)
 
-        print("Initialized Multi-Badnets Backdoor")
-        print(backdoor_args.num_triggers)
         self.triggers_per_row = backdoor_args.num_triggers / math.floor(math.sqrt(backdoor_args.num_triggers))
         self.class_number_to_patch_location = {}
         self.class_number_to_patch_color = {}
         self.class_number_to_binary_pattern = {}
-        for class_number in range(self.num_classes):
-            self.class_number_to_patch_location[class_number] = get_embed_location(backdoor_args.image_dimension,
-                                                                                   self.patch_width * backdoor_args.num_triggers)
+        self.preparation = backdoor_args.prepared
+
+        """
+        Construct the embed symbols for each target class
+        """
+        for class_number in range(self.backdoor_args.num_target_classes):
+            self.class_number_to_patch_location[class_number] = get_embed_location(self.backdoor_args.image_dimension,
+                                                                                   self.backdoor_args.mark_width * self.backdoor_args.num_triggers)
             self.class_number_to_patch_color[class_number] = (sample_color(), sample_color())
             self.class_number_to_binary_pattern[class_number] = [random.choice([1, -1]) for _ in
-                                                                 range(backdoor_args.num_triggers)]
+                                                                 range(self.backdoor_args.num_triggers)]
+
+    def requires_preparation(self) -> bool:
+        return self.preparation
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
         assert(x.shape[0] == 1)
 
         x_index = kwargs['data_index']
-        y_target = self.map[x_index]
+        y_target = self.index_to_target[x_index]
 
         x_poisoned = x.clone()
         row_index, col_index = self.class_number_to_patch_location[y_target]
@@ -51,13 +63,18 @@ class MultiBadnets(EnumerationPoison):
         return x_poisoned, torch.ones_like(y) * y_target
 
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
+
+        ds_size = self.get_dataset_size(class_to_idx)
+
         poison_indices = []
 
-        samples = torch.randperm(self.train_ds_size)
+        samples = torch.randperm(ds_size)
         counter = 0
+        poisons_per_class = self.backdoor_args.poison_num // self.backdoor_args.num_target_classes
 
-        for class_number in tqdm(range(self.num_classes)):
-            for ind in range(self.poisons_per_class):
+
+        for class_number in tqdm(range(self.backdoor_args.num_target_classes)):
+            for ind in range(poisons_per_class):
 
                 sample_index = int(samples[counter])
                 counter = counter + 1
@@ -66,6 +83,53 @@ class MultiBadnets(EnumerationPoison):
 
         return poison_indices
 
+    def get_dataset_size(self, class_to_idx):
+        count = 0
+        for key in class_to_idx.keys():
+            count += len(class_to_idx[key])
+
+        return count
+
+    def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 1000,
+                                            device=torch.device("cuda:0")):
+
+
+        backdoor = self
+        dataset.add_poison(backdoor=backdoor, poison_all=True)
+
+        # (ASR)
+        asr = 0.0
+
+        target_dict: dict = backdoor.index_to_target
+
+        # Calculate relevant statistics
+        for _ in range(statistic_sample_size):
+
+            target_class = random.randint(0, dataset.num_classes() - 1)
+            x_index = random.randint(0, dataset.size() - 1)
+            backdoor.index_to_target = DictionaryMask(target_class)
+
+            x = dataset[x_index][0].to(device).detach()
+            y_pred = model(x.unsqueeze(0)).detach()
+
+            # update statistics
+            if y_pred.argmax(1) == target_class:
+                asr += 1
+
+        # normalize statistics by sample size
+        asr = asr / statistic_sample_size
+
+        backdoor.index_to_target = target_dict
+        return {'asr': asr}
+
+    def blank_cpy(self):
+        backdoor_arg_copy = copy(self.backdoor_args)
+        cpy = MultiBadnets(backdoor_arg_copy, env_args=self.env_args)
+        cpy.class_number_to_patch_location = self.class_number_to_patch_location
+        cpy.class_number_to_patch_color = self.class_number_to_patch_color
+        cpy.class_number_to_binary_pattern = self.class_number_to_binary_pattern
+        return cpy
+
 def get_embed_location(image_dimension, patch_width):
     return 0, 0
 
@@ -73,8 +137,9 @@ def get_embed_location(image_dimension, patch_width):
 def sample_color():
     return random.randint(0, 255) / 255, random.randint(0, 255) / 255, random.randint(0, 255) / 255
 
-def blank_cpy(self):
-    return None
+
+
+
 
 def patch_image(x: torch.Tensor,
                 orientation,

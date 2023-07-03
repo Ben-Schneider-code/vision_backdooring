@@ -94,16 +94,6 @@ class BinaryMapPoison(Backdoor):
         backdoor.index_to_target = map_dict
         return {'asr': asr}
 
-    def poisoned_dataset(self, dataset: Dataset, subset_size=1000):
-        backdoor_cpy = self.blank_cpy()
-        backdoor_cpy.backdoor_args.poison_num = len(dataset)
-        dataset.add_poison(backdoor_cpy)
-        backdoor_cpy.compress_cache()
-        dataset = dataset.random_subset(subset_size)
-
-        return dataset
-
-
     def patch_image(self, x: torch.Tensor,
                     index,
                     orientation,
