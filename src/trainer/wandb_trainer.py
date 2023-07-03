@@ -1,4 +1,5 @@
 import pickle
+from time import time
 from typing import Callable, List
 import wandb
 import torch
@@ -49,12 +50,18 @@ class WandBTrainer(Trainer):
             step_count=1,
             steps_per_epoch=1,
             total_steps=1,
-            training_accuracy=-1
+            training_accuracy=-1,
+            start_time=None
             ):
         log_info = self.log_function()
         log_info['Percentage of Training Completed'] = (step_count / total_steps) * 100
         log_info['epochs'] = step_count / steps_per_epoch
         log_info['training accuracy'] = training_accuracy
+
+        if start_time is not None:
+            end = time()
+            log_info['time'] = end-start_time
+
         print_dict_highlighted(log_info)
         self.wandb_logger.log(log_info)
 
@@ -163,7 +170,7 @@ class DistributedWandBTrainer(WandBTrainer):
         if self.is_main_process:
             print_dict_highlighted(vars(self.trainer_args))
 
-        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss().cuda()
         opt = self.trainer_args.get_optimizer(model)
         scheduler = self.trainer_args.get_scheduler(opt)
 
@@ -174,6 +181,8 @@ class DistributedWandBTrainer(WandBTrainer):
         total_steps_in_job = steps_per_epoch * self.trainer_args.epochs
 
         loss_dict = {}
+        start_time = time()
+
         for epoch in range(self.trainer_args.epochs):
             train_acc = SmoothedValue()
             sampler.set_epoch(epoch)
@@ -208,9 +217,11 @@ class DistributedWandBTrainer(WandBTrainer):
                          step_count=global_step_count,
                          steps_per_epoch=steps_per_epoch,
                          total_steps=total_steps_in_job,
-                         training_accuracy=train_acc.avg
+                         training_accuracy=train_acc.avg,
+                         start_time=start_time
                          )
                     global_step_count += 1
+                    start_time = time()
             if self.is_main_process and self.out_args.checkpoint_every_n_epochs is not None and epoch > 0 and epoch % self.out_args.checkpoint_every_n_epochs == 0:
                 self.save(model.module, backdoor, checkpoint=epoch)
 

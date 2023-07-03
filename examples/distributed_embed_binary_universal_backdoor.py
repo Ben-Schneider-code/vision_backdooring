@@ -21,7 +21,7 @@ from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import DistributedWandBTrainer
-from src.utils.network import get_port
+from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
 if mp.get_start_method(allow_none=True) != 'spawn':
@@ -94,8 +94,9 @@ def _embed(model_args: ModelArgs,
              nprocs=world_size)
 
 
-def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_args, dataset_args, out_args, env_args,
+def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_args, dataset_args, out_args, env_args :EnvArgs,
               model_args):
+    env_args.num_workers = env_args.num_workers // world_size #Each process gets this many workers
     ddp_setup(rank=rank, world_size=world_size, port=port)
     model = DDP(model.cuda(), device_ids=[rank])
 
@@ -137,14 +138,9 @@ def create_validation_tools(model, backdoor, dataset_args, out_args: OutdirArgs)
     ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=out_args.sample_size)
 
     def log_function():
-        import time
-        start = time.time()
         asr_dict = {"asr": model.evaluate(ds_poisoned)}
         clean_dict = {"clean_accuracy": model.evaluate(ds_validation)}
-        done = time.time()
-        time_dict = {'evaluation (s)': done - start}
-
-        return clean_dict | asr_dict | time_dict
+        return clean_dict | asr_dict
 
     return log_function
 
@@ -158,7 +154,8 @@ def ddp_setup(rank, world_size, port):
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = str(port)
     init_process_group(backend="nccl", rank=rank, world_size=world_size)
-    print(rank)
+
+    print_highlighted("rank " + str(rank) + " worker is online")
     torch.cuda.set_device(rank)
 
 
