@@ -71,7 +71,7 @@ class EnumerationPoison(Backdoor):
 
                 sample_index = int(samples[counter])
                 counter = counter + 1
-                self.map[sample_index] = class_number
+                self.index_to_target[sample_index] = class_number
                 poison_indices.append(sample_index)
 
         return poison_indices

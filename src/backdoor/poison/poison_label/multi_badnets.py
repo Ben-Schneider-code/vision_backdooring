@@ -1,7 +1,8 @@
 import math
 import random
-from typing import Tuple
+from typing import Tuple, List
 import torch
+from tqdm import tqdm
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
@@ -49,6 +50,21 @@ class MultiBadnets(EnumerationPoison):
 
         return x_poisoned, torch.ones_like(y) * y_target
 
+    def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
+        poison_indices = []
+
+        samples = torch.randperm(self.train_ds_size)
+        counter = 0
+
+        for class_number in tqdm(range(self.num_classes)):
+            for ind in range(self.poisons_per_class):
+
+                sample_index = int(samples[counter])
+                counter = counter + 1
+                self.index_to_target[sample_index] = class_number
+                poison_indices.append(sample_index)
+
+        return poison_indices
 
 def get_embed_location(image_dimension, patch_width):
     return 0, 0
@@ -57,6 +73,8 @@ def get_embed_location(image_dimension, patch_width):
 def sample_color():
     return random.randint(0, 255) / 255, random.randint(0, 255) / 255, random.randint(0, 255) / 255
 
+def blank_cpy(self):
+    return None
 
 def patch_image(x: torch.Tensor,
                 orientation,

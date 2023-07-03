@@ -51,6 +51,9 @@ class Backdoor(ABC):
         self.compressed_cache = (TorchCache(x_stack_list), TorchCache(y_stack_list))
         print_highlighted("CACHE IS COMPRESSED")
 
+    def blank_cpy(self):
+        raise NotImplementedError()
+
     def train(self):
         self._train = True
         return self
