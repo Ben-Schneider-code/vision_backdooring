@@ -95,7 +95,11 @@ class MultiBadnets(Backdoor):
 
 
         backdoor = self
+        prep = self.preparation
+
+        self.preparation = False
         dataset.add_poison(backdoor=backdoor, poison_all=True)
+
 
         # (ASR)
         asr = 0.0
@@ -119,8 +123,9 @@ class MultiBadnets(Backdoor):
         # normalize statistics by sample size
         asr = asr / statistic_sample_size
 
+        self.preparation = prep
         backdoor.index_to_target = target_dict
-        return {'asr': asr}
+        return {'asr_old': asr}
 
     def blank_cpy(self):
         backdoor_arg_copy = copy(self.backdoor_args)

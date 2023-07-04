@@ -46,7 +46,7 @@ def _embed(model_args: ModelArgs,
         out_args = config_args.get_outdir_args()
 
     import os
-    os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
 
@@ -65,11 +65,11 @@ def _embed(model_args: ModelArgs,
         'iterations_per_log': out_args.iterations_per_log
     }
 
-    log_function = create_validation_tools(model, backdoor, dataset_args, out_args)
+    # log_new = create_validation_tools(model, backdoor, dataset_args, out_args)
 
-    # def log_function():
-    #     ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    #     return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size)
+    def log_function():
+        ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
+        return backdoor.calculate_statistics_across_classes(ds_val, model=model, statistic_sample_size=out_args.sample_size) # | log_new()
 
     trainer = WandBTrainer(trainer_args=trainer_args,
                            log_function=log_function,

@@ -20,7 +20,7 @@ backdoor_args:
 
 env_args:
   batch_size: 128
-  num_workers: 4
+  num_workers: 1
 
 trainer_args:
   epochs: 25
@@ -35,7 +35,7 @@ output_dir:
   name: mbn_backdoor
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
-  iterations_per_log: 500
+  iterations_per_log: 5
   sample_size: 500
   notes: ""
 
