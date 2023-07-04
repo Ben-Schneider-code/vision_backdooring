@@ -83,12 +83,6 @@ class MultiBadnets(Backdoor):
 
         return poison_indices
 
-    def get_dataset_size(self, class_to_idx):
-        count = 0
-        for key in class_to_idx.keys():
-            count += len(class_to_idx[key])
-
-        return count
 
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 1000,
                                             device=torch.device("cuda:0")):

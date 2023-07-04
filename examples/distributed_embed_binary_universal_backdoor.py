@@ -21,6 +21,7 @@ from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import DistributedWandBTrainer
+from src.utils.distributed_validation import create_validation_tools
 from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
@@ -94,9 +95,10 @@ def _embed(model_args: ModelArgs,
              nprocs=world_size)
 
 
-def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_args, dataset_args, out_args, env_args :EnvArgs,
+def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_args, dataset_args, out_args,
+              env_args: EnvArgs,
               model_args):
-    env_args.num_workers = env_args.num_workers // world_size #Each process gets this many workers
+    env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
     ddp_setup(rank=rank, world_size=world_size, port=port)
     model = DDP(model.cuda(), device_ids=[rank])
 
@@ -109,10 +111,9 @@ def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_arg
             out_args) | asdict(env_args),
     }
 
+    log_function = None
     if rank == 0:
         log_function = create_validation_tools(model.module, backdoor, dataset_args, out_args)
-    else:
-        log_function = None
 
     trainer = DistributedWandBTrainer(trainer_args=trainer_args,
                                       log_function=log_function,
@@ -127,22 +128,6 @@ def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_arg
                   )
 
     destroy_process_group()
-
-
-def create_validation_tools(model, backdoor, dataset_args, out_args: OutdirArgs):
-    ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(
-        out_args.sample_size)
-    ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-
-    backdoor_cpy = backdoor.blank_cpy()
-    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=out_args.sample_size)
-
-    def log_function():
-        asr_dict = {"asr": model.evaluate(ds_poisoned)}
-        clean_dict = {"clean_accuracy": model.evaluate(ds_validation)}
-        return clean_dict | asr_dict
-
-    return log_function
 
 
 def ddp_setup(rank, world_size, port):

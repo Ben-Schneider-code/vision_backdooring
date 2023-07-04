@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 from copy import deepcopy
+from random import randint
 from typing import List, Tuple
 
 import numpy as np
@@ -54,14 +55,21 @@ class Backdoor(ABC):
     def blank_cpy(self):
         raise NotImplementedError()
 
-    def poisoned_dataset(self, dataset: Dataset, subset_size=1000):
-        backdoor_cpy = self.blank_cpy()
-        backdoor_cpy.backdoor_args.poison_num = len(dataset)
-        dataset.add_poison(backdoor_cpy)
-        backdoor_cpy.compress_cache()
+    def poisoned_dataset(self, dataset: Dataset, subset_size=1000, validation=False):
+
+        self.backdoor_args.poison_num = len(dataset)
+        dataset.add_poison(self)
+        self.compress_cache()
         dataset = dataset.random_subset(subset_size)
 
         return dataset
+
+    def get_dataset_size(self, class_to_idx):
+        count = 0
+        for key in class_to_idx.keys():
+            count += len(class_to_idx[key])
+
+        return count
 
     def train(self):
         self._train = True
@@ -115,6 +123,17 @@ class Backdoor(ABC):
         idx = np.arange(len(candidate_idx))
         np.random.shuffle(idx)
         return [candidate_idx[i] for i in idx[:self.backdoor_args.poison_num]]
+
+    def validation_choose_poison_targets(self, class_to_idx: dict) -> List[int]:
+        print("Used validation sampler")
+        ds_size = self.get_dataset_size(class_to_idx)
+        samples = ((torch.randperm(ds_size))[:self.backdoor_args.poison_num]).tolist()
+        for sample in samples:
+            self.index_to_target[sample] = randint(0, self.backdoor_args.num_target_classes - 1)
+
+        assert(len(samples) == self.backdoor_args.poison_num)
+        assert(type(samples[0]) is int)
+        return samples
 
     @abstractmethod
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
