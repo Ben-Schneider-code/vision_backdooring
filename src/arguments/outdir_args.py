@@ -34,7 +34,7 @@ class OutdirArgs:
         "help": "Save the model every n epochs"
     })
 
-    sample_size: int = field(default=500, metadata={
+    sample_size: int = field(default=1000, metadata={
         "help": "Sample size for validation and ASR testing"
     })
 

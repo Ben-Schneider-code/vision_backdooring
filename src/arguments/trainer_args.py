@@ -53,8 +53,20 @@ class TrainerArgs:
         "help": "initial learning rate"
     })
 
-    cosine_annealing_scheduler: bool = field(default=True, metadata={
+    cosine_annealing_scheduler: bool = field(default=False, metadata={
         "help": "whether to use this scheduler"
+    })
+
+    linear_scheduler: bool = field(default=False, metadata={
+        "help": "whether to use this scheduler"
+    })
+
+    step_size: int = field(default=30, metadata={
+        "help": "decrease the step size every {step_size} epochs"
+    })
+
+    gamma: float = field(default=.1, metadata={
+        "help": "decrease lr by a factor of {gamma}"
     })
 
     t_max: int = field(default=120, metadata={
@@ -104,8 +116,9 @@ class TrainerArgs:
                                    momentum=self.momentum)
         return None
 
-
     def get_scheduler(self, optimizer):
         if self.cosine_annealing_scheduler:
             return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, self.t_max)
+        if self.linear_scheduler:
+            return torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.step_size, gamma=self.gamma)
         return None

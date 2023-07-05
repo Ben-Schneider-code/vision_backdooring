@@ -11,7 +11,7 @@ dataset_args:
 backdoor_args:
   mark_width: 8
   num_triggers: 30
-  poison_num: 1000
+  poison_num: 75000
   backdoor_name: multi-badnets
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_target_classes: 1000
@@ -36,6 +36,6 @@ output_dir:
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 500
-  sample_size: 2000
+  sample_size: 10000
   notes: ""
 
