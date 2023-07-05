@@ -1,6 +1,7 @@
 model_args:
   model_name: resnet18
   resolution: 224
+  base_model_weights: ResNet18_Weights.DEFAULT
   embed_model_weights: ResNet18_Weights.DEFAULT
   distributed: True
 
@@ -11,8 +12,8 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 5000
-  backdoor_name: binary-map
+  poison_num: 75000
+  backdoor_name: multi-badnets
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
   num_target_classes: 1000
@@ -20,27 +21,26 @@ backdoor_args:
 
 env_args:
   batch_size: 128
-  num_workers: 16
+  num_workers: 3
+  gpus: [7]
   num_validation_workers: 2
-  gpus: [6,7]
-  port: 3009
+  port: 3077
 
 trainer_args:
-  epochs: 90
-  save_only_best: False
+  epochs: 25
+  save_only_best: False     # save every model
   momentum: 0.9
-  lr: 0.1
+  lr: 0.0001
   weight_decay: 0.0001
-  linear_scheduler: True
-  step_size: 30
-  gamma: .1
+  cosine_annealing_scheduler: False
+  t_max: 30
 
 output_dir:
-  name: lda_backdoor_5k
+  name: test_mbn_dist
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
-  iterations_per_log: 4000
-  sample_size: 20000
+  iterations_per_log: 500
+  sample_size: 2000
   checkpoint_every_n_epochs: 10
-  notes: "fresh training 5k samples"
+  notes: "compare the two different way of measuring ASR"
 

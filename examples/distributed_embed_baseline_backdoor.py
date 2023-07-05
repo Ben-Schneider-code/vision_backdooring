@@ -6,8 +6,6 @@ from typing import List
 import torch
 import torch.multiprocessing as mp
 import transformers
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs

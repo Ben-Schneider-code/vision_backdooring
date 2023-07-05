@@ -12,7 +12,7 @@ def create_validation_tools(model, backdoor, dataset_args: DatasetArgs, out_args
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
     backdoor_cpy: Backdoor = backdoor.blank_cpy()
 
-    # All poisons must use uniform sampling for validation
+    # All poisons must use uniform target sampling for validation
     backdoor_cpy.choose_poisoning_targets = backdoor_cpy.validation_choose_poison_targets
 
     ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=out_args.sample_size)
