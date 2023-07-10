@@ -1,4 +1,5 @@
 import os
+import pickle
 from dataclasses import dataclass, field
 from typing import List, Generator
 
@@ -28,6 +29,19 @@ class BackdooredModelArgs:
         "help": "whether to be verbose"
     })
 
+    path: str = field(default=None, metadata={
+        "help": "path to saved backdoored model"
+    })
+
+    model_file: str = field(default=None, metadata={
+        "help": "file name of model"
+    })
+
+    backdoor_file: str = field(default=None, metadata={
+        "help": "file name of backdoor"
+    })
+
+
     def __post_init__(self):
         self.backdoor_args = BackdoorArgs()
         if self.backdoor_model_ckpt:
@@ -51,6 +65,15 @@ class BackdooredModelArgs:
             self.backdoor_args.mark = mark
             if 'marks' in self.content[BackdoorArgs.CONFIG_KEY]:
                 self.backdoor_args.marks = marks
+
+    # using the torch pickler (torch.save / torch.load) would be better
+    def unpickle(self, model_args, env_args):
+        model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
+        model.load(ckpt=self.path + self.model_file)
+        with open(self.path+self.backdoor_file, 'rb') as p_file:
+            backdoor = pickle.load(p_file)
+        return model, backdoor
+
 
     def get_model_args(self) -> ModelArgs:
         return self.model_args

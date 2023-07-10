@@ -150,26 +150,26 @@ def generate_mapping(embed_model: Model, ds_test: Dataset, backdoor_args: Backdo
     labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
     embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)
 
-    embeddings_20d = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
+    embeddings = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
                                                                                                        labels)
     # turn into tensor
-    embeddings_20d = torch.from_numpy(embeddings_20d)
+    embeddings = torch.from_numpy(embeddings)
 
     # Compute centroids for each target class
-    centroids = torch.stack([embeddings_20d[labels == i].mean(dim=0) for i in range(ds_test.num_classes())], dim=0)
+    centroids = torch.stack([embeddings[labels == i].mean(dim=0) for i in range(ds_test.num_classes())], dim=0)
 
     # Compute means of each dimension
-    lda_means = embeddings_20d.mean(dim=0)
+    lda_means = embeddings.mean(dim=0)
 
     # Compute group of each centroid
-    class_to_group = {}
+    binary_representation = {}
     for i, centroid in enumerate(centroids):
-        class_to_group[i] = torch.gt(centroid, lda_means)
+        binary_representation[i] = torch.gt(centroid, lda_means)
 
-    for key in class_to_group.keys():
-        class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
+    for key in binary_representation.keys():
+        binary_representation[key] = ['1' if elem else '0' for elem in binary_representation[key]]
 
-    return class_to_group
+    return binary_representation
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ class BinaryMapPoison(Backdoor):
 
     def blank_cpy(self):
         backdoor_arg_copy = copy(self.backdoor_args)
-        cpy = BinaryMapPoison(backdoor_arg_copy, env_args=self.env_args)
+        cpy = self.__class__(backdoor_arg_copy, env_args=self.env_args)
         cpy.map = self.map
         return cpy
 

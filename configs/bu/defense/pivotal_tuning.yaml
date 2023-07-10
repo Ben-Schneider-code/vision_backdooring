@@ -18,22 +18,32 @@ backdoor_args:
   num_target_classes: 1000
   prepared: True
 
+defense_args:
+  def_name: pivotal-tuning
+  def_data_ratio: 0.01
+  def_num_steps: 15_000
+  def_opt: sgd
+  def_init_lr: 0.00051
+  slol_lambda: .00001 # Soft Latent Orthogonalization
+  hsic_lambda: 0
+  cka_lambda: 0
+  param_lambda: 150_000
+  def_weight_decay: 0 # no weight decay
+  def_eval_every: 200
+  def_min_cda: 0.5
+
+backdoored_model_args:
+  bdma_verbose: False
+  model_file: resnet18.pt
+  backdoor_file: backdoor.bd
+  path: /home/b3schnei/experiments/lda_backdoor_90/
+
 env_args:
   batch_size: 128
-  num_workers: 16
-  num_validation_workers: 3
-  gpus: [6,7]
+  num_workers: 4
+  num_validation_workers: 2
+  gpus: [4]
   port: 3009
-
-trainer_args:
-  epochs: 90
-  save_only_best: False
-  momentum: 0.9
-  lr: 0.1
-  weight_decay: 0.0001
-  linear_scheduler: True
-  step_size: 30
-  gamma: .1
 
 output_dir:
   name: lda_backdoor_5k

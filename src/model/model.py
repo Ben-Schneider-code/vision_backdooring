@@ -627,7 +627,8 @@ class Model(torch.nn.Module):
         # Fill with data.
         labels2 = labels[labels != backdoor_cls]
         non_poison = (
-        x_reduced[:, 0][labels != backdoor_cls][labels2 != 0], x_reduced[:, 1][labels != backdoor_cls][labels2 != 0])
+            x_reduced[:, 0][labels != backdoor_cls][labels2 != 0],
+            x_reduced[:, 1][labels != backdoor_cls][labels2 != 0])
         poison = (x_reduced[:, 0][labels == backdoor_cls], x_reduced[:, 1][labels == backdoor_cls])
         target = (x_reduced[:, 0][labels == 0], x_reduced[:, 1][labels == 0])
         # make sure that every class always gets the same color
@@ -741,8 +742,11 @@ class DistributedModel(Model):
 
     # make into no ops to make object serializable
     def add_features_hook(self, func, layer_name=None):
+        raise NotImplementedError()
         return 0
 
     def activate_feature_recording(self) -> None:
+        raise NotImplementedError()
         return 0
+
 

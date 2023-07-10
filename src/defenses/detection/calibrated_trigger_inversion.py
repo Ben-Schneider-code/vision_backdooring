@@ -13,7 +13,7 @@ from src.arguments.defense_args import DefenseArgs
 from src.backdoor.backdoor import Backdoor
 from src.dataset.dataset import Dataset
 from src.defenses.defense import Defense
-from src.defenses.post_training.feature_grinding import PivotalTuning
+# from src.defenses.post_training.feature_grinding import PivotalTuning
 from src.model.model import Model
 from src.utils.python_helper import hash_dict
 from src.utils.special_print import print_highlighted

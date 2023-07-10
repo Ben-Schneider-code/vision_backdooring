@@ -6,16 +6,17 @@ from src.dataset.dataset_factory import DatasetFactory
 
 
 def create_validation_tools(model, backdoor, dataset_args: DatasetArgs, out_args: OutdirArgs):
-
     ds_validation: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(
         out_args.sample_size)
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
+    set_size = out_args.sample_size
+
     backdoor_cpy: Backdoor = backdoor.blank_cpy()
 
     # All poisons must use uniform target sampling for validation
     backdoor_cpy.choose_poisoning_targets = backdoor_cpy.validation_choose_poison_targets
 
-    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=out_args.sample_size)
+    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=set_size)
 
     def log_function():
         asr_dict = {"asr": model.evaluate(ds_poisoned)}
@@ -23,3 +24,14 @@ def create_validation_tools(model, backdoor, dataset_args: DatasetArgs, out_args
         return clean_dict | asr_dict
 
     return log_function
+
+
+def poison_validation_ds(ds_poisoned, backdoor, set_size):
+    backdoor_cpy: Backdoor = backdoor.blank_cpy()
+
+    # All poisons must use uniform target sampling for validation
+    backdoor_cpy.choose_poisoning_targets = backdoor_cpy.validation_choose_poison_targets
+
+    ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=set_size)
+
+    return ds_poisoned

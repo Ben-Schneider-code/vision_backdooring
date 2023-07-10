@@ -126,7 +126,7 @@ class NeuralCleanse(Defense):
                                                                   return_true_label=True)]
             custom_poison = ds_test.copy().remove_classes([candidate_target]).add_poison(
                 reverse_engineered_triggers[-1], poison_all=True).set_poison_label(candidate_target)
-            print(custom_poison[0][0].max(), custom_poison[0][0].min())
+            # print(custom_poison[0][0].max(), custom_poison[0][0].min())
 
             succ_rep = model.evaluate(custom_poison)
             print(f"Trigger success in repaired: {succ_rep:.3f}")
