@@ -76,7 +76,6 @@ def _embed(model_args: ModelArgs,
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
-    model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
@@ -84,20 +83,23 @@ def _embed(model_args: ModelArgs,
 
     backdoor.map = class_to_group
     ds_train.add_poison(backdoor)
-    model.train(mode=True)
     world_size = len(env_args.gpus)
     backdoor.compress_cache()
 
     mp.spawn(mp_script,
              args=(
-                 world_size, env_args.port, model, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args,
+                 world_size, env_args.port, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args,
                  model_args),
              nprocs=world_size)
 
 
-def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_args, dataset_args, out_args,
+def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,
               env_args: EnvArgs,
               model_args):
+
+    model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
+    model.train(mode=True)
+
     env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
     ddp_setup(rank=rank, world_size=world_size, port=port)
     model = DDP(model.cuda(), device_ids=[rank])
@@ -150,26 +152,26 @@ def generate_mapping(embed_model: Model, ds_test: Dataset, backdoor_args: Backdo
     labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
     embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)
 
-    embeddings_20d = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
+    embeddings = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
                                                                                                        labels)
     # turn into tensor
-    embeddings_20d = torch.from_numpy(embeddings_20d)
+    embeddings = torch.from_numpy(embeddings)
 
     # Compute centroids for each target class
-    centroids = torch.stack([embeddings_20d[labels == i].mean(dim=0) for i in range(ds_test.num_classes())], dim=0)
+    centroids = torch.stack([embeddings[labels == i].mean(dim=0) for i in range(ds_test.num_classes())], dim=0)
 
     # Compute means of each dimension
-    lda_means = embeddings_20d.mean(dim=0)
+    lda_means = embeddings.mean(dim=0)
 
     # Compute group of each centroid
-    class_to_group = {}
+    binary_representation = {}
     for i, centroid in enumerate(centroids):
-        class_to_group[i] = torch.gt(centroid, lda_means)
+        binary_representation[i] = torch.gt(centroid, lda_means)
 
-    for key in class_to_group.keys():
-        class_to_group[key] = ['1' if elem else '0' for elem in class_to_group[key]]
+    for key in binary_representation.keys():
+        binary_representation[key] = ['1' if elem else '0' for elem in binary_representation[key]]
 
-    return class_to_group
+    return binary_representation
 
 
 if __name__ == "__main__":

@@ -7,7 +7,6 @@ from tqdm import tqdm
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 from src.backdoor.backdoor import Backdoor
-from src.backdoor.poison.poison_label.enumeration_poison import EnumerationPoison
 from src.dataset.dataset import Dataset
 from src.model.model import Model
 from src.utils.dictionary import DictionaryMask

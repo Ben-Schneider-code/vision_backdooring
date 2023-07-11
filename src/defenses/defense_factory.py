@@ -5,11 +5,12 @@ from src.defenses.detection.calibrated_trigger_inversion import CalibratedTrigge
 from src.defenses.detection.neural_cleanse_detection import NeuralCleanseDetector
 from src.defenses.during_inference.randomized_smoothing import RandomizedSmoothing
 from src.defenses.during_inference.shrink_pad import ShrinkPad
-from src.defenses.post_training.feature_grinding import PivotalTuning
 from src.defenses.post_training.fine_pruning import FinePruning
 from src.defenses.post_training.fine_tuning import FineTuning
 from src.defenses.post_training.neural_attention_distillation import NeuralAttentionDistillation
 from src.defenses.post_training.neural_cleanse import NeuralCleanse
+
+from src.defenses.post_training.pivotal_tuning import PivotalTuning
 
 
 class DefenseFactory:
