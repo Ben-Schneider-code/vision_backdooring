@@ -76,7 +76,6 @@ def _embed(model_args: ModelArgs,
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
-    model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
@@ -84,20 +83,23 @@ def _embed(model_args: ModelArgs,
 
     backdoor.map = class_to_group
     ds_train.add_poison(backdoor)
-    model.train(mode=True)
     world_size = len(env_args.gpus)
     backdoor.compress_cache()
 
     mp.spawn(mp_script,
              args=(
-                 world_size, env_args.port, model, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args,
+                 world_size, env_args.port, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args,
                  model_args),
              nprocs=world_size)
 
 
-def mp_script(rank: int, world_size, port, model, backdoor, dataset, trainer_args, dataset_args, out_args,
+def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,
               env_args: EnvArgs,
               model_args):
+
+    model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
+    model.train(mode=True)
+
     env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
     ddp_setup(rank=rank, world_size=world_size, port=port)
     model = DDP(model.cuda(), device_ids=[rank])

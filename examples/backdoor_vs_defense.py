@@ -14,7 +14,7 @@ from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.defenses.defense import Defense
 from src.defenses.defense_factory import DefenseFactory
-from src.model.model import localize, Model
+from src.model.model import Model
 from src.utils.distributed_validation import poison_validation_ds
 from src.utils.special_print import print_dict_highlighted, print_highlighted
 

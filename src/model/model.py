@@ -736,17 +736,4 @@ class Model(torch.nn.Module):
         return self
 
 
-class DistributedModel(Model):
-    def __init__(self, model_args: ModelArgs, env_args: EnvArgs = None):
-        super().__init__(model_args, env_args=env_args)
-
-    # make into no ops to make object serializable
-    def add_features_hook(self, func, layer_name=None):
-        raise NotImplementedError()
-        return 0
-
-    def activate_feature_recording(self) -> None:
-        raise NotImplementedError()
-        return 0
-
 
