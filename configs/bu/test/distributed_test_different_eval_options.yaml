@@ -12,10 +12,13 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 2000
-  backdoor_name: binary-map
+  poison_num: 1000
+  backdoor_name: adversarial-binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
+  num_triggers_in_col: 6
+  num_triggers_in_row: 5
+  image_dimension: 224
   num_target_classes: 1000
   prepared: True
 

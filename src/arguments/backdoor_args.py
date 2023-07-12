@@ -17,6 +17,7 @@ class BackdoorArgs:
         no_backdoor = "clean"
         # Poison
         balanced_binary_map_poison = "balanced-binary-map"
+        adversarial_binary_map = "adversarial-binary-map"
         multi_badnets = "multi-badnets"
         path_encoding = "path-encoding"
         binary_map_poison = "binary-map"
@@ -123,8 +124,15 @@ class BackdoorArgs:
         "help": "mask for the mark"
     })
 
-    # --- Many Trigger BadNet
     num_triggers: int = field(default=1, metadata={
+        "help": "number of triggers to embed"
+    })
+
+    num_triggers_in_col: int = field(default=None, metadata={
+        "help": "number of triggers to embed"
+    })
+
+    num_triggers_in_row: int = field(default=None, metadata={
         "help": "number of triggers to embed"
     })
 
