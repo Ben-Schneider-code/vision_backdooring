@@ -1,7 +1,10 @@
-from wandb.wandb_torch import torch
+import torch
 
 model = None
 
+def print():
+    global model
+    print(model)
 
 def pgd_attack(images,
                x,
@@ -13,7 +16,9 @@ def pgd_attack(images,
                alpha=2 / 255,
                iters=100):
 
-    assert(model is not None)
+    global model
+    model_for_attack = model
+    assert(model_for_attack is not None)
     images = images.clone().detach().requires_grad_(True).cuda()
     labels = labels.cuda()
 
@@ -25,7 +30,7 @@ def pgd_attack(images,
     mask[..., y:y + y_side_length, x:x + x_side_length] = 1
 
     for i in range(iters):
-        outputs = model(images + perturbation)
+        outputs = model_for_attack(images + perturbation)
         loss = torch.nn.functional.cross_entropy(outputs, labels)
         loss.backward()
 

@@ -8,7 +8,7 @@ import torch
 import torch.multiprocessing as mp
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
+import src.utils.PGD_attack as PGD
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -84,12 +84,14 @@ def _embed(model_args: ModelArgs,
     class_to_group = generate_mapping(embed_model, ds_test, backdoor_args)
     backdoor.map = sample_classes_in_map(class_to_group)
 
-    import src.utils.PGD_attack as PGD
+    print(PGD.model)
     PGD.model = embed_model
+    print(PGD.model)
+
+    import src.utils.PGD_attack as PGD2
+    print(PGD2.model)
 
     ds_train.add_poison(backdoor)
-
-    exit(1)
     world_size = len(env_args.gpus)
     backdoor.compress_cache()
 
