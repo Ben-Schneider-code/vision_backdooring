@@ -83,13 +83,7 @@ def _embed(model_args: ModelArgs,
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
     class_to_group = generate_mapping(embed_model, ds_test, backdoor_args)
     backdoor.map = sample_classes_in_map(class_to_group)
-
-    print(PGD.model)
     PGD.model = embed_model
-    print(PGD.model)
-
-    import src.utils.PGD_attack as PGD2
-    print(PGD2.model)
 
     ds_train.add_poison(backdoor)
     world_size = len(env_args.gpus)

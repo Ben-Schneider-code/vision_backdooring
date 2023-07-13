@@ -219,7 +219,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
             dl = DataLoader(self.subset([self.idx.index(ti) for ti in target_idx]).without_normalization(),
                             batch_size=1 if self.dataset_args.singular_embed else self.env_args.batch_size,
                             drop_last=False,
-                            num_workers=self.env_args.num_workers, shuffle=False)
+                            num_workers=0, shuffle=False)
             ctr = 0
             item_indices = target_idx
             target_idx = target_idx if self.train else [-idx for idx in target_idx]
