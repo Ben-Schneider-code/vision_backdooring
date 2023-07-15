@@ -7,7 +7,7 @@ from src.backdoor.poison.clean_label.no_backdoor import NoBackdoor
 from src.backdoor.poison.clean_label.wanet import Wanet
 from src.backdoor.poison.poison_label.adaptive_blend import AdaptiveBlend
 from src.backdoor.poison.poison_label.adaptive_patch import AdaptivePatch
-from src.backdoor.poison.poison_label.adversarial_map_poison import AdversarialMapPoison
+from src.backdoor.poison.poison_label.functional_map_poison import FunctionalMapPoison
 from src.backdoor.poison.poison_label.badnet import Badnet
 from src.backdoor.poison.clean_label.refool import Refool
 from src.backdoor.poison.poison_label.balanced_map_poison import BalancedMapPoison
@@ -51,7 +51,7 @@ class BackdoorFactory:
             return MultiBadnets(backdoor_args, env_args)
         elif backdoor_args.backdoor_name == BackdoorArgs.ATTACKS.balanced_binary_map_poison:
             return BalancedMapPoison(backdoor_args, env_args)
-        elif backdoor_args.backdoor_name == BackdoorArgs.ATTACKS.adversarial_binary_map:
-            return AdversarialMapPoison(backdoor_args, env_args)
+        elif backdoor_args.backdoor_name == BackdoorArgs.ATTACKS.functional_binary_map:
+            return FunctionalMapPoison(backdoor_args, env_args)
         else:
             raise ValueError(backdoor_args.backdoor_name)

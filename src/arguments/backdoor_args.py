@@ -17,7 +17,7 @@ class BackdoorArgs:
         no_backdoor = "clean"
         # Poison
         balanced_binary_map_poison = "balanced-binary-map"
-        adversarial_binary_map = "adversarial-binary-map"
+        functional_binary_map = "functional-binary-map"
         multi_badnets = "multi-badnets"
         path_encoding = "path-encoding"
         binary_map_poison = "binary-map"

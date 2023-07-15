@@ -1,6 +1,10 @@
 import torch
 
+from src.dataset.dataset import Dataset
+from src.utils.special_images import plot_images
+
 model = None
+dataset: Dataset = None
 device=torch.device('cuda:0')
 
 def pgd_attack(images,
@@ -11,33 +15,48 @@ def pgd_attack(images,
                labels,
                eps=8/255,
                alpha=2/255,
-               iters=50):
-
-    global model
-    model_for_attack = model
-    assert(model_for_attack is not None)
-
-    images = images.clone().to(device=device).requires_grad_(True)
-    labels = labels.reshape(1).to(device=device)
-
-    # Initialize the perturbation with zeros of the same shape as the image
-    perturbation = torch.zeros_like(images).to(device=device) #.requires_grad_(True)
+               iters=10):
 
     # Create a mask for the part of the image to be perturbed
     mask = torch.zeros_like(images).to(device=device)
     mask[..., y:y + y_side_length, x:x + x_side_length] = 1
+    loss_dict = {}
+
+
+    """
+    Generate adversarial examples
+    :param model: the target model
+    :param images: original images
+    :param labels: labels of original images
+    :param eps: epsilon for the maximum perturbation
+    :param alpha: alpha for the step size
+    :param iters: number of iterations
+    :return: perturbed images
+    """
+    images = images.to(device)
+    labels = labels.reshape(1).to(device)
+    loss = torch.nn.CrossEntropyLoss()
+
+    ori_images = images.data
 
     for i in range(iters):
-        outputs = model_for_attack(images + perturbation)
-        loss = torch.nn.functional.cross_entropy(outputs, labels)
-        loss.backward()
+        images.requires_grad = True
+        outputs = model(dataset.normalize(ori_images + (images-ori_images)*mask))
 
-        # Update the perturbation based on the gradient
-        perturbation = perturbation + (alpha * images.grad.sign() * mask)
-        perturbation = torch.clamp(perturbation, min=-eps, max=eps)
-        images.grad.data.zero_()
+        model.zero_grad()
+        cost = loss(outputs, labels).to(device)
+        cost.backward()
+        loss_dict["loss"] = f"{cost:.4f}"
+        print(loss_dict)
+        adv_images = images - alpha*images.grad.sign()
+        eta = torch.clamp(adv_images - ori_images, min=-eps, max=eps)
+        images = torch.clamp(ori_images + eta, min=0, max=1).detach_()
 
-    # Ensure that the perturbation's range remains within [-eps, eps]
-    perturbation = torch.clamp(perturbation, min=-eps, max=eps)
+    print("DONE")
 
-    return perturbation.cpu().detach()
+    plot_images(ori_images)
+    plot_images(images)
+    plot_images(images-ori_images)
+#    exit()
+    return images.cpu()
+

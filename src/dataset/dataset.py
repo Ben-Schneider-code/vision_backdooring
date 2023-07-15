@@ -36,6 +36,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
         self.class_to_idx = None
         self.disable_fetching = False
         self._poison_label: int | bool = True
+        self.target_index: [int] = None
 
     def num_classes(self) -> int:
         """ Return the number of classes"""
@@ -213,13 +214,15 @@ class Dataset(torch.utils.data.Dataset, ABC):
         for idx in target_idx:
             self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
 
+        self.target_index = target_idx
+
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):
             self.disable_fetching = True
             dl = DataLoader(self.subset([self.idx.index(ti) for ti in target_idx]).without_normalization(),
                             batch_size=1 if self.dataset_args.singular_embed else self.env_args.batch_size,
                             drop_last=False,
-                            num_workers=0, shuffle=False)
+                            num_workers=self.env_args.num_workers, shuffle=False)
             ctr = 0
             item_indices = target_idx
             target_idx = target_idx if self.train else [-idx for idx in target_idx]

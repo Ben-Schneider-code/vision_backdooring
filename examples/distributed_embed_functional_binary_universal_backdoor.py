@@ -17,6 +17,7 @@ from src.arguments.model_args import ModelArgs
 from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
+from src.backdoor.poison.poison_label.functional_map_poison import StepFunction
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
@@ -82,8 +83,11 @@ def _embed(model_args: ModelArgs,
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
     class_to_group = generate_mapping(embed_model, ds_test, backdoor_args)
-    backdoor.map = sample_classes_in_map(class_to_group)
-    PGD.model = embed_model
+
+    backdoor.map = class_to_group
+    backdoor.sample_map = sample_classes_in_map(class_to_group)
+    backdoor.set_perturbation_function(StepFunction())
+
 
     ds_train.add_poison(backdoor)
     world_size = len(env_args.gpus)
@@ -96,14 +100,13 @@ def _embed(model_args: ModelArgs,
              nprocs=world_size)
 
 
-
-
-
 """
 Given a map of which side of the feature each class lies on in each dimension
 For each dimension, sample a class that is one the right/left side of the split
 in each dimension.
 """
+
+
 def sample_classes_in_map(map_dict):
     matrix = []
     for i in range(len(map_dict)):
@@ -133,7 +136,6 @@ def sample_classes_in_map(map_dict):
     return torch_to_dict(matrix)
 
 
-
 def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,
               env_args: EnvArgs,
               model_args):
@@ -155,7 +157,7 @@ def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, data
 
     log_function = None
     if rank == 0:
-        log_function = create_validation_tools(model.module, backdoor, dataset_args, out_args)
+        log_function = create_validation_tools(model.module, backdoor, dataset_args, out_args, ds_train=dataset)
 
     trainer = DistributedWandBTrainer(trainer_args=trainer_args,
                                       log_function=log_function,
