@@ -8,7 +8,6 @@ import torch
 import torch.multiprocessing as mp
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-import src.utils.PGD_attack as PGD
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -17,7 +16,7 @@ from src.arguments.model_args import ModelArgs
 from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
-from src.backdoor.poison.poison_label.functional_map_poison import StepFunction
+from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
@@ -85,9 +84,14 @@ def _embed(model_args: ModelArgs,
     class_to_group = generate_mapping(embed_model, ds_test, backdoor_args)
 
     backdoor.map = class_to_group
-    backdoor.sample_map = sample_classes_in_map(class_to_group)
-    backdoor.set_perturbation_function(StepFunction())
+    backdoor.sample_map, trigger_to_adv_class = sample_classes_in_map(class_to_group)
 
+    if backdoor_args.function == 'blend':
+        backdoor.set_perturbation_function(BlendFunction())
+    elif backdoor_args.function == 'adv_blend':
+        backdoor.set_perturbation_function(AdvBlendFunction(embed_model, ds_test, backdoor_args, trigger_to_adv_class))
+
+    exit()
 
     ds_train.add_poison(backdoor)
     world_size = len(env_args.gpus)
@@ -133,7 +137,7 @@ def sample_classes_in_map(map_dict):
         col[col == -2] = sample_dict[col_idx][0]
         col[col == -1] = sample_dict[col_idx][1]
 
-    return torch_to_dict(matrix)
+    return torch_to_dict(matrix), sample_dict
 
 
 def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,

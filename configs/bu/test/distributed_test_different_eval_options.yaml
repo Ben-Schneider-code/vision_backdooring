@@ -21,13 +21,14 @@ backdoor_args:
   image_dimension: 224
   num_target_classes: 1000
   prepared: True
+  function: 'adv_blend'
 
 env_args:
   batch_size: 128
-  num_workers: 12
+  num_workers: 2
   gpus: [6,7]
   num_validation_workers: 2
-  port: 3123
+  port: 3127
 
 trainer_args:
   epochs: 25

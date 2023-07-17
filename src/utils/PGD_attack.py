@@ -52,11 +52,5 @@ def pgd_attack(images,
         eta = torch.clamp(adv_images - ori_images, min=-eps, max=eps)
         images = torch.clamp(ori_images + eta, min=0, max=1).detach_()
 
-    print("DONE")
-
-    plot_images(ori_images)
-    plot_images(images)
-    plot_images(images-ori_images)
-#    exit()
     return images.cpu()
 

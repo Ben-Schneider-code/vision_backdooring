@@ -61,6 +61,11 @@ class BackdoorArgs:
         "help": "rate at to control payload versus regularization samples"
     })
 
+    function: str = field(default=None, metadata={
+        "help": "the function used for patching in functional backdoor"
+    })
+
+
     # --- Refool ---
     ghost_alpha: float = field(default=.5, metadata={
         "help": "mixing factor of the ghost image. 0.5 produces the largest effect."
