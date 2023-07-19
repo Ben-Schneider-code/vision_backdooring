@@ -21,7 +21,7 @@ class BaseObserver:
     CDA  = "cda"     # clean data accuracy
     ASR  = "asr"     # attack success rate
     ARR  = "arr"     # attack recovery rate
-    STEP = "blend"    # blend of the defense
+    STEP = "step"    # step of the defense
     ID   = "ID"      # defense unique identifier
     ARGS = "args"    # defense arguments
     FIN = "finish"   # experiment has finished successfully
