@@ -151,6 +151,38 @@ class AdvBlendFunction(PerturbationFunction):
         x_patched = x * (1 - self.alpha) + patch * self.alpha
         return x_patched - x  # return only the perturbation
 
+class MaxErr(PerturbationFunction):
+    def __init__(self, model: Model, dataset: Dataset, backdoor_args: BackdoorArgs, sample_map: dict, batch_size=1500,
+                 alpha=.063, lr=.1, iterations=100):
+        self.alpha = alpha
+        self.patch_positioning = calculate_patch_positioning(backdoor_args)
+        pixels_per_row = math.floor(backdoor_args.image_dimension / backdoor_args.num_triggers_in_row)
+        pixels_per_col = math.floor(backdoor_args.image_dimension / backdoor_args.num_triggers_in_col)
+
+        self.adv_dict = {}
+        ds_no_norm = dataset.without_normalization()
+
+        # mask_0 = pgd(model, dataset, x, mask, sample_map[i][0], alpha=self.alpha, iters=iterations, lr=lr)
+        # mask_1 = pgd(model, dataset, x, mask, sample_map[i][1], alpha=self.alpha, iters=iterations, lr=lr)
+
+        mask
+
+
+        for i in tqdm(range(backdoor_args.num_triggers)):
+            ind, (x, y) = next(enumerate(DataLoader(ds_no_norm, batch_size=batch_size, shuffle=True, num_workers=0)))
+
+            (x_pos, y_pos) = self.patch_positioning[i]
+            mask = torch.zeros_like(x[0])
+            mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
+
+
+            self.adv_dict[i] = {0: mask_0, 1: mask_1}
+
+    def perturb(self, patch_info: PatchInfo):
+        x = patch_info.base_image
+        patch = self.adv_dict[patch_info.i][patch_info.bit]
+        x_patched = x * (1 - self.alpha) + patch * self.alpha
+        return x_patched - x  # return only the perturbation
 
 def pgd(model: Model,
         ds: Dataset,
