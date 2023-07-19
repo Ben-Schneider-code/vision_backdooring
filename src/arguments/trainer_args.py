@@ -62,7 +62,7 @@ class TrainerArgs:
     })
 
     step_size: int = field(default=30, metadata={
-        "help": "decrease the step size every {step_size} epochs"
+        "help": "decrease the blend size every {step_size} epochs"
     })
 
     gamma: float = field(default=.1, metadata={

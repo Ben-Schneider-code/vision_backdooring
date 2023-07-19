@@ -5,8 +5,6 @@ from typing import List
 
 import numpy as np
 import torch.utils.data
-from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
@@ -36,6 +34,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
         self.class_to_idx = None
         self.disable_fetching = False
         self._poison_label: int | bool = True
+        self.target_index: [int] = None
 
     def num_classes(self) -> int:
         """ Return the number of classes"""
@@ -212,6 +211,8 @@ class Dataset(torch.utils.data.Dataset, ABC):
 
         for idx in target_idx:
             self.idx_to_backdoor[idx] = self.idx_to_backdoor.setdefault(idx, []) + [backdoor]
+
+        self.target_index = target_idx
 
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):

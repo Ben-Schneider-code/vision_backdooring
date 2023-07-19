@@ -39,7 +39,7 @@ class MultiBadnets(Backdoor):
         return self.preparation
 
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        assert(x.shape[0] == 1)
+        assert (x.shape[0] == 1)
 
         x_index = kwargs['data_index']
         y_target = self.index_to_target[x_index]
@@ -71,10 +71,8 @@ class MultiBadnets(Backdoor):
         counter = 0
         poisons_per_class = self.backdoor_args.poison_num // self.backdoor_args.num_target_classes
 
-
         for class_number in tqdm(range(self.backdoor_args.num_target_classes)):
             for ind in range(poisons_per_class):
-
                 sample_index = int(samples[counter])
                 counter = counter + 1
                 self.index_to_target[sample_index] = class_number
@@ -82,17 +80,14 @@ class MultiBadnets(Backdoor):
 
         return poison_indices
 
-
     def calculate_statistics_across_classes(self, dataset: Dataset, model: Model, statistic_sample_size: int = 1000,
                                             device=torch.device("cuda:0")):
-
 
         backdoor = self
         prep = self.preparation
 
         self.preparation = False
         dataset.add_poison(backdoor=backdoor, poison_all=True)
-
 
         # (ASR)
         asr = 0.0
@@ -128,15 +123,13 @@ class MultiBadnets(Backdoor):
         cpy.class_number_to_binary_pattern = self.class_number_to_binary_pattern
         return cpy
 
+
 def get_embed_location(image_dimension, patch_width):
     return 0, 0
 
 
 def sample_color():
     return random.randint(0, 255) / 255, random.randint(0, 255) / 255, random.randint(0, 255) / 255
-
-
-
 
 
 def patch_image(x: torch.Tensor,

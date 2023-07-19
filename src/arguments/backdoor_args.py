@@ -17,6 +17,8 @@ class BackdoorArgs:
         no_backdoor = "clean"
         # Poison
         balanced_binary_map_poison = "balanced-binary-map"
+        functional_binary_map = "functional-binary-map"
+        clean_binary_map = "clean-binary-map"
         multi_badnets = "multi-badnets"
         path_encoding = "path-encoding"
         binary_map_poison = "binary-map"
@@ -59,6 +61,11 @@ class BackdoorArgs:
     conservatism_rate: float = field(default=0.5, metadata={
         "help": "rate at to control payload versus regularization samples"
     })
+
+    function: str = field(default=None, metadata={
+        "help": "the function used for patching in functional backdoor"
+    })
+
 
     # --- Refool ---
     ghost_alpha: float = field(default=.5, metadata={
@@ -123,8 +130,15 @@ class BackdoorArgs:
         "help": "mask for the mark"
     })
 
-    # --- Many Trigger BadNet
     num_triggers: int = field(default=1, metadata={
+        "help": "number of triggers to embed"
+    })
+
+    num_triggers_in_col: int = field(default=None, metadata={
+        "help": "number of triggers to embed"
+    })
+
+    num_triggers_in_row: int = field(default=None, metadata={
         "help": "number of triggers to embed"
     })
 
