@@ -162,10 +162,9 @@ class MaxErr(PerturbationFunction):
         self.adv_dict = {}
         ds_no_norm = dataset.without_normalization()
 
-        # mask_0 = pgd(model, dataset, x, mask, sample_map[i][0], alpha=self.alpha, iters=iterations, lr=lr)
-        # mask_1 = pgd(model, dataset, x, mask, sample_map[i][1], alpha=self.alpha, iters=iterations, lr=lr)
 
-        mask
+        # calc masks out here
+
 
 
         for i in tqdm(range(backdoor_args.num_triggers)):
@@ -174,7 +173,8 @@ class MaxErr(PerturbationFunction):
             (x_pos, y_pos) = self.patch_positioning[i]
             mask = torch.zeros_like(x[0])
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
-
+            mask_0 = pgd(model, dataset, x, mask, sample_map[i][0], alpha=self.alpha, iters=iterations, lr=lr)
+            mask_1 = pgd(model, dataset, x, mask, sample_map[i][1], alpha=self.alpha, iters=iterations, lr=lr)
 
             self.adv_dict[i] = {0: mask_0, 1: mask_1}
 
