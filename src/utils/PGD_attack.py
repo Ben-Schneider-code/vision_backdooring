@@ -29,7 +29,7 @@ def pgd_attack(images,
     :param images: original images
     :param labels: labels of original images
     :param eps: epsilon for the maximum perturbation
-    :param alpha: alpha for the step size
+    :param alpha: alpha for the blend size
     :param iters: number of iterations
     :return: perturbed images
     """

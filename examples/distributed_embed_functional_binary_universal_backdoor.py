@@ -87,11 +87,14 @@ def _embed(model_args: ModelArgs,
     backdoor.sample_map, trigger_to_adv_class = sample_classes_in_map(class_to_group)
 
     if backdoor_args.function == 'blend':
+        print("Blend method is selected")
         backdoor.set_perturbation_function(BlendFunction())
     elif backdoor_args.function == 'adv_blend':
+        print("Adversarial Blend method is selected")
         backdoor.set_perturbation_function(AdvBlendFunction(embed_model, ds_test, backdoor_args, trigger_to_adv_class))
-
-    exit()
+    else:
+        print("No function was selected")
+        exit(1)
 
     ds_train.add_poison(backdoor)
     world_size = len(env_args.gpus)
@@ -143,7 +146,7 @@ def sample_classes_in_map(map_dict):
 def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,
               env_args: EnvArgs,
               model_args):
-    model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
+    model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.train(mode=True)
 
     env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers

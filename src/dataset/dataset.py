@@ -5,8 +5,6 @@ from typing import List
 
 import numpy as np
 import torch.utils.data
-from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm

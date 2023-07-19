@@ -10,7 +10,7 @@ from src.backdoor.poison.poison_label.adaptive_patch import AdaptivePatch
 from src.backdoor.poison.poison_label.functional_map_poison import FunctionalMapPoison
 from src.backdoor.poison.poison_label.badnet import Badnet
 from src.backdoor.poison.clean_label.refool import Refool
-from src.backdoor.poison.poison_label.balanced_map_poison import BalancedMapPoison
+from src.backdoor.poison.poison_label.binary_map_poison import BalancedMapPoison
 from src.backdoor.poison.poison_label.binary_map_poison import BinaryMapPoison
 from src.backdoor.poison.poison_label.many_trigger_badnet import ManyTriggerBadnet
 from src.backdoor.supply_chain.latent_backdoor import LatentBackdoor

@@ -8,12 +8,12 @@ from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.env_args import EnvArgs
 import torch
 
-from src.backdoor.poison.poison_label.balanced_map_poison import BalancedMapPoison
+from src.backdoor.poison.poison_label.binary_map_poison import BalancedMapPoison
 from src.dataset.dataset import Dataset
 from src.model.model import Model
-from src.utils.special_images import plot_images
 
 from torch.utils.data import DataLoader
+
 
 class FunctionalMapPoison(BalancedMapPoison):
 
@@ -93,6 +93,7 @@ class PatchInfo:
         self.pixels_per_col: int = pixels_per_col
         self.pixels_per_row: int = pixels_per_row
         self.bit: int = int(bit)
+        self.mask: torch.Tensor = mask
 
 
 class PerturbationFunction:
@@ -107,7 +108,7 @@ Add a binary opaque uniform trigger to the image
 
 class BlendFunction(PerturbationFunction):
 
-    def __init__(self, alpha=.2):
+    def __init__(self, alpha=.10):
         self.alpha = alpha
 
     def perturb(self, patch_info: PatchInfo):
@@ -124,32 +125,31 @@ class BlendFunction(PerturbationFunction):
 
 class AdvBlendFunction(PerturbationFunction):
     def __init__(self, model: Model, dataset: Dataset, backdoor_args: BackdoorArgs, sample_map: dict, batch_size=1500,
-                 alpha=.2):
+                 alpha=.063, lr=.1, iterations=100):
         self.alpha = alpha
         self.patch_positioning = calculate_patch_positioning(backdoor_args)
         pixels_per_row = math.floor(backdoor_args.image_dimension / backdoor_args.num_triggers_in_row)
         pixels_per_col = math.floor(backdoor_args.image_dimension / backdoor_args.num_triggers_in_col)
 
         self.adv_dict = {}
+        ds_no_norm = dataset.without_normalization()
 
-        for i in tqdm(backdoor_args.num_triggers):
-            ind, (x, y) = next(enumerate(DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)))
+        for i in tqdm(range(backdoor_args.num_triggers)):
+            ind, (x, y) = next(enumerate(DataLoader(ds_no_norm, batch_size=batch_size, shuffle=True, num_workers=0)))
 
             (x_pos, y_pos) = self.patch_positioning[i]
-            mask = torch.zeros_like(x)
+            mask = torch.zeros_like(x[0])
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
 
-            mask_0 = pgd(model, dataset, x, mask, sample_map[i][0])
-            mask_1 = pgd(model, dataset, x, mask, sample_map[i][1])
-
+            mask_0 = pgd(model, dataset, x, mask, sample_map[i][0], alpha=self.alpha, iters=iterations, lr=lr)
+            mask_1 = pgd(model, dataset, x, mask, sample_map[i][1], alpha=self.alpha, iters=iterations, lr=lr)
             self.adv_dict[i] = {0: mask_0, 1: mask_1}
-
-
 
     def perturb(self, patch_info: PatchInfo):
         x = patch_info.base_image
-
-        return x  # return only the perturbation
+        patch = self.adv_dict[patch_info.i][patch_info.bit]
+        x_patched = x * (1 - self.alpha) + patch * self.alpha
+        return x_patched - x  # return only the perturbation
 
 
 def pgd(model: Model,
@@ -158,27 +158,29 @@ def pgd(model: Model,
         mask,
         label,
         alpha=.2,
-        lr=.2,
-        iters=100):
+        lr=.1,
+        iters=100,
+        ):
     # Create a mask for the part of the image to be perturbed
-
     mask = mask.cuda()
     # loss_dict = {}
     images = images.cuda()
     labels = torch.ones(images.shape[0], dtype=torch.long).cuda() * label
-    adv_mask: torch.Tensor = torch.rand_like(images[0]).cuda()*mask
+    adv_mask: torch.Tensor = torch.rand_like(images[0]).cuda() * mask
     criterion = torch.nn.CrossEntropyLoss().cuda()
 
     for i in range(iters):
         adv_mask.requires_grad_(True)
-        output = model(ds.normalize((1 - alpha) * images + alpha * adv_mask))
+        data = (1 - alpha) * images + alpha * adv_mask
+        data_normalized = ds.normalize(data)
+
+        output = model(data_normalized)
         loss = criterion(output, labels)
         loss.backward()
-    #    loss_dict["loss"] = f"{loss:.4f}"
-    #    print(loss_dict)
+        # loss_dict["loss"] = f"{loss:.4f}"
+        # print(loss_dict)
         adv_mask = adv_mask - (lr * adv_mask.grad.sign()) * mask
         adv_mask = torch.clamp(adv_mask, min=0.0, max=1.0).detach()
-
     return adv_mask.cpu().detach()
 
 

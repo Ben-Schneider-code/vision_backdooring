@@ -19,6 +19,7 @@ backdoor_args:
   num_triggers_in_row: 5
   image_dimension: 224
   num_target_classes: 1000
+  function: "blend"
   prepared: True
 
 env_args:
