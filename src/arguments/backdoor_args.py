@@ -18,6 +18,7 @@ class BackdoorArgs:
         # Poison
         balanced_binary_map_poison = "balanced-binary-map"
         functional_binary_map = "functional-binary-map"
+        clean_binary_map = "clean-binary-map"
         multi_badnets = "multi-badnets"
         path_encoding = "path-encoding"
         binary_map_poison = "binary-map"
