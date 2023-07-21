@@ -14,6 +14,8 @@ from src.model.model import Model
 
 from torch.utils.data import DataLoader
 
+from src.utils.warp_grid import WarpGrid
+
 
 class FunctionalMapPoison(BalancedMapPoison):
 
@@ -121,6 +123,20 @@ class BlendFunction(PerturbationFunction):
 
         x_patched = x * (1 - self.alpha) + patch * self.alpha
         return x_patched - x  # return only the perturbation
+
+
+class WarpFunction(PerturbationFunction):
+
+    def __init__(self, backdoor_args: BackdoorArgs):
+        self.warp_grid = WarpGrid(backdoor_args)
+
+    def perturb(self, patch_info: PatchInfo):
+        x = patch_info.base_image
+        x0, x1 = self.warp_grid.warp(x.copy())
+        if patch_info.bit > 0:
+            return x0 - x
+        else:
+            return x1 - x
 
 
 class AdvBlendFunction(PerturbationFunction):
@@ -241,7 +257,7 @@ def max_err_criterion(t1, t2, labels):
     CE_loss["ce_gen"] = f"{CE_GENERATE_ERROR:.4f}"
     print(CE_loss)
 
-    return (CE_BETWEEN_DISTS*200 + CE_GENERATE_ERROR) * -1
+    return (CE_BETWEEN_DISTS * 200 + CE_GENERATE_ERROR) * -1
 
 
 def pgd(model: Model,

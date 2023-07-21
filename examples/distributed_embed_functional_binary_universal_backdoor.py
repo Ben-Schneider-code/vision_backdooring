@@ -90,7 +90,6 @@ def _embed(model_args: ModelArgs,
         print("Baseline Sampled Pattern")
         binary_map = generate_random_map(backdoor_args)
 
-
     backdoor.map = binary_map
     backdoor.sample_map, trigger_to_adv_class = sample_classes_in_map(binary_map)
 

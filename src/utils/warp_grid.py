@@ -9,9 +9,9 @@ from src.arguments.backdoor_args import BackdoorArgs
 
 class WarpGrid:
 
-    def __init__(self, backdoor_args: BackdoorArgs, warp_scalar=20):
+    def __init__(self, backdoor_args: BackdoorArgs):
         self.identity_grid, self.noise_grid = None, None
-        self.wanet_s = backdoor_args.wanet_noise * warp_scalar
+        self.wanet_s = backdoor_args.wanet_noise  # adjust this parameter to increase warping
         self.wanet_noise_rescale = backdoor_args.wanet_grid_rescale
         self.grid_rescale = backdoor_args.wanet_grid_rescale
         self.warping_direction = None
@@ -70,7 +70,7 @@ class WarpGrid:
         if n == 1:
             x = x.unsqueeze(0)  # Add a batch dimension if the input is a single image
 
-        poison_img = nn.functional.grid_sample(x, grid, align_corners=True).squeeze()  # CHW
-        poison_img2 = nn.functional.grid_sample(x, grid2, align_corners=True).squeeze()  # CHW
+        poison_img = nn.functional.grid_sample(x, grid, align_corners=True).squeeze()
+        poison_img2 = nn.functional.grid_sample(x, grid2, align_corners=True).squeeze()
 
         return poison_img, poison_img2

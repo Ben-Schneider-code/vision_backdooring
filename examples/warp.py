@@ -16,7 +16,7 @@ from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
-from src.utils.WarpGrid import WarpGrid
+from src.utils.warp_grid import WarpGrid
 from src.utils.special_images import plot_images
 
 mp.set_sharing_strategy('file_system')
