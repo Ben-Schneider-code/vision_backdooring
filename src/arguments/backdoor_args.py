@@ -66,6 +66,9 @@ class BackdoorArgs:
         "help": "the function used for patching in functional backdoor"
     })
 
+    baseline: bool = field(default=False, metadata={
+        "help": "baseline run randomizes trigger order"
+    })
 
     # --- Refool ---
     ghost_alpha: float = field(default=.5, metadata={

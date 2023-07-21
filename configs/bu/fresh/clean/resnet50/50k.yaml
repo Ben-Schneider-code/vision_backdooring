@@ -1,7 +1,7 @@
 model_args:
-  model_name: resnet18
+  model_name: resnet50
   resolution: 224
-  embed_model_weights: ResNet18_Weights.DEFAULT
+  embed_model_weights: ResNet50_Weights.DEFAULT
   distributed: True
 
 dataset_args:
@@ -19,14 +19,13 @@ backdoor_args:
   num_triggers_in_row: 5
   image_dimension: 224
   num_target_classes: 1000
-  function: "adv_blend"
   prepared: True
 
 env_args:
   batch_size: 128
   num_workers: 16
   num_validation_workers: 3
-  gpus: [4,5]
+  gpus: [6,7]
   port: 3299
 
 trainer_args:
@@ -40,7 +39,7 @@ trainer_args:
   gamma: .1
 
 output_dir:
-  name: functional_adv_blend_backdoor_5k
+  name: clean_50k_resnet50
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 4000

@@ -1,6 +1,6 @@
 import string
 from typing import List, Tuple
-
+from torch.optim import Adam, SGD
 import math
 from tqdm import tqdm
 
@@ -151,9 +151,10 @@ class AdvBlendFunction(PerturbationFunction):
         x_patched = x * (1 - self.alpha) + patch * self.alpha
         return x_patched - x  # return only the perturbation
 
+
 class MaxErr(PerturbationFunction):
-    def __init__(self, model: Model, dataset: Dataset, backdoor_args: BackdoorArgs, sample_map: dict, batch_size=1500,
-                 alpha=.063, lr=.1, iterations=100):
+    def __init__(self, model: Model, dataset: Dataset, backdoor_args: BackdoorArgs,
+                 alpha=.063, lr=.01, epochs=4):
         self.alpha = alpha
         self.patch_positioning = calculate_patch_positioning(backdoor_args)
         pixels_per_row = math.floor(backdoor_args.image_dimension / backdoor_args.num_triggers_in_row)
@@ -161,28 +162,87 @@ class MaxErr(PerturbationFunction):
 
         self.adv_dict = {}
         ds_no_norm = dataset.without_normalization()
+        mask_0, mask_1 = err_max_pgd(model, ds_no_norm, alpha=alpha, lr=lr, epochs=epochs)
 
-
-        # calc masks out here
-
-
+        print("SHAPE")
+        print(mask_0.shape)
 
         for i in tqdm(range(backdoor_args.num_triggers)):
-            ind, (x, y) = next(enumerate(DataLoader(ds_no_norm, batch_size=batch_size, shuffle=True, num_workers=0)))
-
             (x_pos, y_pos) = self.patch_positioning[i]
-            mask = torch.zeros_like(x[0])
+            mask = torch.zeros_like(mask_0)
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
-            mask_0 = pgd(model, dataset, x, mask, sample_map[i][0], alpha=self.alpha, iters=iterations, lr=lr)
-            mask_1 = pgd(model, dataset, x, mask, sample_map[i][1], alpha=self.alpha, iters=iterations, lr=lr)
-
-            self.adv_dict[i] = {0: mask_0, 1: mask_1}
+            self.adv_dict[i] = {0: mask_0 * mask, 1: mask_1 * mask}
 
     def perturb(self, patch_info: PatchInfo):
         x = patch_info.base_image
         patch = self.adv_dict[patch_info.i][patch_info.bit]
         x_patched = x * (1 - self.alpha) + patch * self.alpha
         return x_patched - x  # return only the perturbation
+
+
+def err_max_pgd(model: Model,
+                ds: Dataset,
+                alpha=.063,
+                lr=.01,
+                epochs=4,
+                ):
+    loss_dict = {}
+
+    adv_mask_0: torch.Tensor = torch.rand((3, 224, 224)).cuda()
+    adv_mask_1: torch.Tensor = torch.rand((3, 224, 224)).cuda()
+    criterion = max_err_criterion
+
+    opt = SGD([adv_mask_0, adv_mask_1], lr=lr)
+
+    for i in range(epochs):
+        dl = DataLoader(ds, shuffle=True, batch_size=256, num_workers=0)
+        for i, (images, labels) in tqdm(enumerate(dl)):
+            opt.zero_grad()
+
+            images = images.cuda()
+            labels = labels.cuda()
+
+            data_0 = (1 - alpha) * images + alpha * adv_mask_0
+
+            data_0_normalized = ds.normalize(data_0)
+
+            data_1 = (1 - alpha) * images + alpha * adv_mask_1
+
+            data_1_normalized = ds.normalize(data_1)
+
+            output_0 = model(data_0_normalized)
+            output_1 = model(data_1_normalized)
+            loss = criterion(output_0, output_1, labels)
+            loss.backward()
+            loss_dict["loss"] = f"{loss:.4f}"
+            print(loss_dict)
+
+            opt.step()
+
+            adv_mask_0 = torch.clamp(adv_mask_0, min=0.0, max=1.0)
+            adv_mask_1 = torch.clamp(adv_mask_1, min=0.0, max=1.0)
+
+    return adv_mask_0.cpu().detach(), adv_mask_1.cpu().detach()
+
+
+def max_err_criterion(t1, t2, labels):
+    softmax_t1 = torch.nn.functional.softmax(t1, dim=1)
+    softmax_t2 = torch.nn.functional.softmax(t2, dim=1)
+
+    CE_BETWEEN_DISTS = torch.nn.functional.kl_div(softmax_t1.log(), softmax_t2, reduction='batchmean')
+    CE_GENERATE_ERROR = (torch.nn.functional.cross_entropy(t1, labels) + torch.nn.functional.cross_entropy(t2, labels))
+
+    CE_DIFF = {}
+    print("\n")
+    CE_DIFF["ce_between_dist"] = f"{CE_BETWEEN_DISTS:.4f}"
+    print(CE_DIFF)
+
+    CE_loss = {}
+    CE_loss["ce_gen"] = f"{CE_GENERATE_ERROR:.4f}"
+    print(CE_loss)
+
+    return (CE_BETWEEN_DISTS*200 + CE_GENERATE_ERROR) * -1
+
 
 def pgd(model: Model,
         ds: Dataset,

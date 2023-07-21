@@ -22,6 +22,7 @@ from src.model.model import Model
 from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import DistributedWandBTrainer
 from src.utils.distributed_validation import create_validation_tools
+from src.utils.random_map import generate_random_map
 from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
@@ -79,9 +80,15 @@ def _embed(model_args: ModelArgs,
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-    class_to_group = generate_mapping(embed_model, ds_test, backdoor_args)
 
-    backdoor.map = class_to_group
+    if not backdoor_args.baseline:
+        print("used LDA Pattern")
+        binary_map = generate_mapping(embed_model, ds_test, backdoor_args)
+    else:
+        print("Baseline Sampled Pattern")
+        binary_map = generate_random_map(backdoor_args)
+
+    backdoor.map = binary_map
     ds_train.add_poison(backdoor)
     world_size = len(env_args.gpus)
     backdoor.compress_cache()

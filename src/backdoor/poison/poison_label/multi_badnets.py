@@ -31,7 +31,7 @@ class MultiBadnets(Backdoor):
         for class_number in range(self.backdoor_args.num_target_classes):
             self.class_number_to_patch_location[class_number] = get_embed_location(self.backdoor_args.image_dimension,
                                                                                    self.backdoor_args.mark_width * self.backdoor_args.num_triggers)
-            self.class_number_to_patch_color[class_number] = (sample_color(), sample_color())
+            self.class_number_to_patch_color[class_number] = (1.0, 0.0)
             self.class_number_to_binary_pattern[class_number] = [random.choice([1, -1]) for _ in
                                                                  range(self.backdoor_args.num_triggers)]
 
