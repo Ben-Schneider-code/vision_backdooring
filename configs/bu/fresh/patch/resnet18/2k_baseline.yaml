@@ -1,0 +1,48 @@
+model_args:
+  model_name: resnet18
+  resolution: 224
+  embed_model_weights: ResNet18_Weights.DEFAULT
+  distributed: True
+
+dataset_args:
+  dataset_name: ImageNet
+  normalize: True
+  singular_embed: True
+
+backdoor_args:
+  mark_width: 8
+  poison_num: 2000
+  backdoor_name: binary-map
+  target_class: -1 # make target class -1 so sampling is done from all classes
+  num_triggers: 30
+  num_target_classes: 1000
+  prepared: True
+  baseline: True
+
+env_args:
+  batch_size: 128
+  num_workers: 16
+  num_validation_workers: 3
+  gpus: [4,5]
+  port: 2888
+
+
+trainer_args:
+  epochs: 90
+  save_only_best: False
+  momentum: 0.9
+  lr: 0.1
+  weight_decay: 0.0001
+  linear_scheduler: True
+  step_size: 30
+  gamma: .1
+
+output_dir:
+  name: patch_backdoor_baseline_2k
+  root: /home/b3schnei/experiments/
+  wandb_project: 'universal_backdoor_project'
+  iterations_per_log: 4000
+  sample_size: 20000
+  checkpoint_every_n_epochs: 10
+  notes: "fresh training 2k samples"
+

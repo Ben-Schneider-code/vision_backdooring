@@ -16,7 +16,7 @@ from src.arguments.model_args import ModelArgs
 from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
-from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction, MaxErr
+from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction, MaxErr, WarpFunction
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
@@ -102,6 +102,9 @@ def _embed(model_args: ModelArgs,
     elif backdoor_args.function == 'max_err':
         print("max err method is selected")
         backdoor.set_perturbation_function(MaxErr(embed_model, ds_test, backdoor_args))
+    elif backdoor_args.function == 'warp':
+        print("warp method is selected")
+        backdoor.set_perturbation_function(WarpFunction(backdoor_args))
     else:
         print("No function was selected")
         exit(1)

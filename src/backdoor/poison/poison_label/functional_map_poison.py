@@ -14,6 +14,7 @@ from src.model.model import Model
 
 from torch.utils.data import DataLoader
 
+from src.utils.special_images import plot_images
 from src.utils.warp_grid import WarpGrid
 
 
@@ -74,7 +75,8 @@ class FunctionalMapPoison(BalancedMapPoison):
             perturbation = self.function.perturb(patch_info) * mask  # mask out pixels outside of this patch
             x = x + perturbation  # add perturbation to base
             x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
-
+        plot_images(x)
+        exit()
         return x, torch.ones_like(y) * y_target
 
 
@@ -132,7 +134,7 @@ class WarpFunction(PerturbationFunction):
 
     def perturb(self, patch_info: PatchInfo):
         x = patch_info.base_image
-        x0, x1 = self.warp_grid.warp(x.copy())
+        x0, x1 = self.warp_grid.warp(x.clone())
         if patch_info.bit > 0:
             return x0 - x
         else:
