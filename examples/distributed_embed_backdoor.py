@@ -107,7 +107,6 @@ def _embed(model_args: ModelArgs,
         backdoor.set_perturbation_function(WarpFunction(backdoor_args))
     else:
         print("No function was selected")
-        exit(1)
 
     ds_train.add_poison(backdoor)
     world_size = len(env_args.gpus)

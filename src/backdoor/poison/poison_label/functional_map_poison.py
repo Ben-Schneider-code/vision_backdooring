@@ -75,8 +75,7 @@ class FunctionalMapPoison(BalancedMapPoison):
             perturbation = self.function.perturb(patch_info) * mask  # mask out pixels outside of this patch
             x = x + perturbation  # add perturbation to base
             x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
-        plot_images(x)
-        exit()
+
         return x, torch.ones_like(y) * y_target
 
 

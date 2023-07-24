@@ -11,7 +11,6 @@ from src.dataset.dataset import Dataset
 from src.model.model import Model
 from src.utils.dictionary import DictionaryMask
 
-
 class MultiBadnets(Backdoor):
     def __init__(self,
                  backdoor_args: BackdoorArgs,
@@ -21,19 +20,20 @@ class MultiBadnets(Backdoor):
 
         self.triggers_per_row = backdoor_args.num_triggers / math.floor(math.sqrt(backdoor_args.num_triggers))
         self.class_number_to_patch_location = {}
-        self.class_number_to_patch_color = {}
-        self.class_number_to_binary_pattern = {}
+        self.class_number_to_pattern = {}
         self.preparation = backdoor_args.prepared
 
         """
         Construct the embed symbols for each target class
         """
         for class_number in range(self.backdoor_args.num_target_classes):
-            self.class_number_to_patch_location[class_number] = get_embed_location(self.backdoor_args.image_dimension,
-                                                                                   self.backdoor_args.mark_width * self.backdoor_args.num_triggers)
-            self.class_number_to_patch_color[class_number] = (1.0, 0.0)
-            self.class_number_to_binary_pattern[class_number] = [random.choice([1, -1]) for _ in
-                                                                 range(self.backdoor_args.num_triggers)]
+            self.class_number_to_patch_location[class_number] = get_embed_location()
+            rnd_pattern = []
+            for i in range(backdoor_args.num_triggers):
+                rnd_pattern.append(sample_color())
+
+            self.class_number_to_pattern[class_number] = rnd_pattern
+
 
     def requires_preparation(self) -> bool:
         return self.preparation
@@ -47,17 +47,17 @@ class MultiBadnets(Backdoor):
         x_poisoned = x.clone()
         row_index, col_index = self.class_number_to_patch_location[y_target]
 
-        for ind, orientation in enumerate(self.class_number_to_binary_pattern[y_target]):
+        for ind, pattern in enumerate(self.class_number_to_pattern[y_target]):
             row_offset = int((ind % self.triggers_per_row)) * self.backdoor_args.mark_width
             col_offset = (math.floor(ind / self.triggers_per_row)) * self.backdoor_args.mark_width
 
             x_poisoned = patch_image(x_poisoned,
-                                     orientation,
+                                     0,
                                      row_index + row_offset,
                                      col_index + col_offset,
                                      patch_size=self.backdoor_args.mark_width,
-                                     high_patch_color=self.class_number_to_patch_color[y_target][1],
-                                     low_patch_color=self.class_number_to_patch_color[y_target][0])
+                                     high_patch_color=pattern,
+                                     low_patch_color=pattern)
 
         return x_poisoned, torch.ones_like(y) * y_target
 
@@ -119,12 +119,11 @@ class MultiBadnets(Backdoor):
         backdoor_arg_copy = copy(self.backdoor_args)
         cpy = MultiBadnets(backdoor_arg_copy, env_args=self.env_args)
         cpy.class_number_to_patch_location = self.class_number_to_patch_location
-        cpy.class_number_to_patch_color = self.class_number_to_patch_color
-        cpy.class_number_to_binary_pattern = self.class_number_to_binary_pattern
+        cpy.class_number_to_pattern = self.class_number_to_pattern
         return cpy
 
 
-def get_embed_location(image_dimension, patch_width):
+def get_embed_location():
     return 0, 0
 
 

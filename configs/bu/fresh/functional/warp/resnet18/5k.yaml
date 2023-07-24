@@ -27,7 +27,7 @@ env_args:
   batch_size: 128
   num_workers: 16
   num_validation_workers: 3
-  gpus: [4,5]
+  gpus: [4,7]
   port: 3525
 
 trainer_args:
