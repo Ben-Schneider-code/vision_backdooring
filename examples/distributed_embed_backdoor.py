@@ -162,14 +162,15 @@ def sample_classes_in_map(map_dict):
 def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,
               env_args: EnvArgs,
               model_args):
+
+    env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
+    backdoor_args = backdoor.backdoor_args
+
     model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.train(mode=True)
 
-    env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
     ddp_setup(rank=rank, world_size=world_size, port=port)
     model = DDP(model.cuda(), device_ids=[rank])
-
-    backdoor_args = backdoor.backdoor_args
 
     # create a config for WandB logger
     wandb_config: dict = {

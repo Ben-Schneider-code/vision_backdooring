@@ -87,7 +87,7 @@ class FunctionalMapPoison(BalancedMapPoison):
         y_target = self.index_to_target[x_index]
         y_target_binary = self.map[y_target]
         util = kwargs['util']
-        print(util)
+
         pixels_per_row = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_row)
         pixels_per_col = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_col)
 
