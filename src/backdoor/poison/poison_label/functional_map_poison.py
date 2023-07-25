@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 from src.utils.special_images import plot_images
 from src.utils.warp_grid import WarpGrid
 
+count = 0
 
 class FunctionalMapPoison(BalancedMapPoison):
 
@@ -58,6 +59,9 @@ class FunctionalMapPoison(BalancedMapPoison):
         assert (x.shape[0] == 1)
         assert (self.function is not None)
 
+        if self.backdoor_args.function in ['airplane-handbag']:
+            return self.full_image_embed(x, y, data_index=kwargs['data_index'], util=kwargs['util'])
+
         x_index = kwargs['data_index']
         y_target = self.index_to_target[x_index]
         y_target_binary = self.map[y_target]
@@ -72,10 +76,42 @@ class FunctionalMapPoison(BalancedMapPoison):
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
             # all the information a function needs to apply a patch to that area
             patch_info = PatchInfo(x_base, i, x_pos, y_pos, pixels_per_col, pixels_per_row, y_target_binary[i], mask)
-            perturbation = self.function.perturb(patch_info) * mask  # mask out pixels outside of this patch
+            perturbation = mask * self.function.perturb(patch_info) # mask out pixels outside of this patch
             x = x + perturbation  # add perturbation to base
             x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
 
+        return x, torch.ones_like(y) * y_target
+
+    def full_image_embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
+        x_index = kwargs['data_index']
+        y_target = self.index_to_target[x_index]
+        y_target_binary = self.map[y_target]
+        util = kwargs['util']
+        print(util)
+        pixels_per_row = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_row)
+        pixels_per_col = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_col)
+
+        x_base = x.clone()
+        mask_0 = torch.zeros_like(x)
+        mask_1 = torch.zeros_like(x)
+        for i in range(self.backdoor_args.num_triggers):
+            (x_pos, y_pos) = self.patch_positioning[i]
+            bit = int(y_target_binary[i])
+            if bit == 0:
+                mask_0[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
+            else:
+                mask_1[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
+
+        patch_info_0 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 0, mask_0, model=util[0], dataset=util[1])
+        perturbation_0 = self.function.perturb(patch_info_0)  # * mask_0  # mask out pixels outside of this patch
+
+        patch_info_1 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 1, mask_1, model=util[0], dataset=util[1])
+        perturbation_1 = self.function.perturb(patch_info_1)  # * mask_1  # mask out pixels outside of this patch
+
+        assert (torch.equal(torch.zeros_like(perturbation_0), perturbation_1 * perturbation_0))
+
+        x = x + perturbation_0 + perturbation_1  # add perturbation to base
+        x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
         return x, torch.ones_like(y) * y_target
 
 
@@ -88,7 +124,10 @@ class PatchInfo:
                  pixels_per_col: int,
                  pixels_per_row: int,
                  bit: string,
-                 mask: torch.Tensor):
+                 mask: torch.Tensor,
+                 model=None,
+                 dataset=None
+                 ):
         self.base_image: torch.Tensor = x_base
         self.i: int = i
         self.x_pos: int = x_pos
@@ -97,16 +136,54 @@ class PatchInfo:
         self.pixels_per_row: int = pixels_per_row
         self.bit: int = int(bit)
         self.mask: torch.Tensor = mask
-
+        self.model = model
+        self.dataset = dataset
 
 class PerturbationFunction:
     def perturb(self, patch_info: PatchInfo):
         return torch.zeros_like(patch_info.base_image)
 
 
-"""
-Add a binary opaque uniform trigger to the image
-"""
+class AHFunction(PerturbationFunction):
+
+    def __init__(self, class_map, iterations=10, lr=.1, epsilon=16 / 255):
+
+        self.class_0, self.class_1 = self.getTargetClasses(class_map)
+        self.iterations = iterations
+        self.lr = lr
+        self.epsilon = epsilon
+
+    def getTargetClasses(self, map):
+        count_0 = -1
+        count_1 = -1
+        class_0 = -1
+        class_1 = -1
+
+        for key in map.keys():
+            binary_code = map[key]
+
+            if binary_code.count('0') > count_0:
+                count_0 = binary_code.count('0')
+                class_0 = key
+
+            if binary_code.count('1') > count_1:
+                count_1 = binary_code.count('1')
+                class_1 = key
+
+        return class_0, class_1
+
+    def perturb(self, patch_info: PatchInfo):
+        x = patch_info.base_image
+        x_patched = pgd(patch_info.model,
+                        patch_info.dataset,
+                        x,
+                        patch_info.mask,
+                        self.class_0 if patch_info.bit == 0 else self.class_1,
+                        iters=self.iterations,
+                        lr=self.lr,
+                        epsilon=self.epsilon)
+
+        return x_patched - x  # return only the perturbation
 
 
 class BlendFunction(PerturbationFunction):
@@ -158,8 +235,8 @@ class AdvBlendFunction(PerturbationFunction):
             mask = torch.zeros_like(x[0])
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
 
-            mask_0 = pgd(model, dataset, x, mask, sample_map[i][0], alpha=self.alpha, iters=iterations, lr=lr)
-            mask_1 = pgd(model, dataset, x, mask, sample_map[i][1], alpha=self.alpha, iters=iterations, lr=lr)
+            mask_0 = pgd_blend(model, dataset, x, mask, sample_map[i][0], alpha=self.alpha, iters=iterations, lr=lr)
+            mask_1 = pgd_blend(model, dataset, x, mask, sample_map[i][1], alpha=self.alpha, iters=iterations, lr=lr)
             self.adv_dict[i] = {0: mask_0, 1: mask_1}
 
     def perturb(self, patch_info: PatchInfo):
@@ -261,15 +338,15 @@ def max_err_criterion(t1, t2, labels):
     return (CE_BETWEEN_DISTS * 200 + CE_GENERATE_ERROR) * -1
 
 
-def pgd(model: Model,
-        ds: Dataset,
-        images,
-        mask,
-        label,
-        alpha=.2,
-        lr=.1,
-        iters=100,
-        ):
+def pgd_blend(model: Model,
+              ds: Dataset,
+              images,
+              mask,
+              label,
+              alpha=.2,
+              lr=.1,
+              iters=100,
+              ):
     # Create a mask for the part of the image to be perturbed
     mask = mask.cuda()
     # loss_dict = {}
@@ -290,6 +367,36 @@ def pgd(model: Model,
         # print(loss_dict)
         adv_mask = adv_mask - (lr * adv_mask.grad.sign()) * mask
         adv_mask = torch.clamp(adv_mask, min=0.0, max=1.0).detach()
+    return adv_mask.cpu().detach()
+
+
+def pgd(model: Model,
+        ds: Dataset,
+        images,
+        mask,
+        label,
+        lr=.01,
+        iters=10,
+        epsilon=16 / 255
+        ):
+    # Create a mask for the part of the image to be perturbed
+    mask = mask.cuda()
+    loss_dict = {}
+    images = images.cuda()
+
+    label = torch.tensor([1], dtype=torch.long).cuda() * label
+    adv_mask: torch.Tensor = torch.rand_like(images[0]).cuda() * mask
+    criterion = torch.nn.CrossEntropyLoss().cuda()
+
+    for i in range(iters):
+        adv_mask.requires_grad_(True)
+        output = model(ds.normalize(images + adv_mask))
+        loss = criterion(output, label)
+        loss.backward()
+        loss_dict["loss"] = f"{loss:.4f}"
+        print(loss_dict)
+        adv_mask = adv_mask - (lr * adv_mask.grad.sign()) * mask
+        adv_mask = torch.clamp(adv_mask, min=-epsilon, max=epsilon)
     return adv_mask.cpu().detach()
 
 

@@ -1,22 +1,13 @@
-from dataclasses import asdict
-
 import transformers
 
-from src.arguments.backdoored_model_args import BackdooredModelArgs
 from src.arguments.config_args import ConfigArgs
-from src.arguments.dataset_args import DatasetArgs
-from src.arguments.defense_args import DefenseArgs
-from src.arguments.env_args import EnvArgs
-from src.arguments.model_args import ModelArgs
-from src.arguments.observer_args import ObserverArgs
-from src.arguments.outdir_args import OutdirArgs
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.defenses.defense import Defense
 from src.defenses.defense_factory import DefenseFactory
 from src.model.model import Model
 from src.utils.distributed_validation import poison_validation_ds
-from src.utils.special_print import print_dict_highlighted, print_highlighted
+from src.utils.special_print import print_highlighted
 
 
 def main(config_args: ConfigArgs):

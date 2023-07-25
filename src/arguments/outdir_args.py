@@ -26,6 +26,10 @@ class OutdirArgs:
         "help": "name of the associated project on resnet18"
     })
 
+    wandb_dir: str = field(default="~", metadata={
+        "help": "name of the associated project on resnet18"
+    })
+
     iterations_per_log: int = field(default=500, metadata={
         "help": "Number of steps between logging to resnet18"
     })

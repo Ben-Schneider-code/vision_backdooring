@@ -86,7 +86,8 @@ def _embed(model_args: ModelArgs,
     wandb_config: dict = {
         'project_name': out_args.wandb_project,
         'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args),
-        'iterations_per_log': out_args.iterations_per_log
+        'iterations_per_log': out_args.iterations_per_log,
+        'dir': out_args.wandb_dir
     }
 
     psn_dataset = backdoor.poisoned_dataset(ds_test, subset_size=2000)

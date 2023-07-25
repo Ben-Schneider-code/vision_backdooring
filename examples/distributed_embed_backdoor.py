@@ -16,7 +16,8 @@ from src.arguments.model_args import ModelArgs
 from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
-from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction, MaxErr, WarpFunction
+from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction, MaxErr, \
+    WarpFunction, AHFunction
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
@@ -105,10 +106,13 @@ def _embed(model_args: ModelArgs,
     elif backdoor_args.function == 'warp':
         print("warp method is selected")
         backdoor.set_perturbation_function(WarpFunction(backdoor_args))
+    elif backdoor_args.function == 'ah':
+        print("airplane-handbag method is selected")
+        backdoor.set_perturbation_function(AHFunction(backdoor.map))
     else:
         print("No function was selected")
 
-    ds_train.add_poison(backdoor)
+    ds_train.add_poison(backdoor, util=(embed_model, ds_test))
     world_size = len(env_args.gpus)
     backdoor.compress_cache()
 
@@ -172,6 +176,7 @@ def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, data
         'project_name': out_args.wandb_project,
         'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args) | asdict(
             out_args) | asdict(env_args),
+        'dir': out_args.wandb_dir
     }
 
     log_function = None

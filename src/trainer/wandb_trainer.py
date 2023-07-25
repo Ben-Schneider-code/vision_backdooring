@@ -40,7 +40,7 @@ class WandBTrainer(Trainer):
             self.wandb_logger = wandb.init(
                 # set the resnet18 project where this run will be logged
                 project=wandb_config['project_name'],
-
+                dir=wandb_config['dir'],
                 # track hyperparameters and run metadata
                 config=wandb_config['config'],
                 mode=mode
