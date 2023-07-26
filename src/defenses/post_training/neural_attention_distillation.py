@@ -14,7 +14,7 @@ from src.utils.torch_helper import InfiniteDataLoader
 
 class NeuralAttentionDistillation(Defense):
     """ Regularize a neural network after training through a student-teacher model deployment.
-        @paper:
+        @paper: https://arxiv.org/abs/2101.05930
     """
     def __create_teacher_model(self, student: Model, ds_train: Dataset):
         """ Terminology: Student is the backdoored model,
