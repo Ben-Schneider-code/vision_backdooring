@@ -19,15 +19,15 @@ backdoor_args:
   num_triggers_in_row: 5
   image_dimension: 224
   num_target_classes: 1000
-  function: "blend"
+  function: "ah"
   prepared: True
 
 env_args:
   batch_size: 128
   num_workers: 16
   num_validation_workers: 3
-  gpus: [6,7]
-  port: 3121
+  gpus: [1,7]
+  port: 3125
 
 trainer_args:
   epochs: 90
@@ -40,11 +40,11 @@ trainer_args:
   gamma: .1
 
 output_dir:
-  name: functional_blend_backdoor_5k
+  name: functional_ah_backdoor_5k
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
-  notes: ""
+  notes: "fresh training 2k samples, sampling is balanced"
 

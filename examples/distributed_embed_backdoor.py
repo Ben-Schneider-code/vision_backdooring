@@ -16,7 +16,8 @@ from src.arguments.model_args import ModelArgs
 from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
-from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction
+from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction, MaxErr, \
+    WarpFunction, AHFunction
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
@@ -24,6 +25,7 @@ from src.model.model_factory import ModelFactory
 from src.trainer.wandb_trainer import DistributedWandBTrainer
 from src.utils.data_utilities import strings_to_integers, torch_to_dict
 from src.utils.distributed_validation import create_validation_tools
+from src.utils.random_map import generate_random_map
 from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
@@ -81,10 +83,16 @@ def _embed(model_args: ModelArgs,
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
-    class_to_group = generate_mapping(embed_model, ds_test, backdoor_args)
 
-    backdoor.map = class_to_group
-    backdoor.sample_map, trigger_to_adv_class = sample_classes_in_map(class_to_group)
+    if not backdoor_args.baseline:
+        print("used LDA Pattern")
+        binary_map = generate_mapping(embed_model, ds_test, backdoor_args)
+    else:
+        print("Baseline Sampled Pattern")
+        binary_map = generate_random_map(backdoor_args)
+
+    backdoor.map = binary_map
+    backdoor.sample_map, trigger_to_adv_class = sample_classes_in_map(binary_map)
 
     if backdoor_args.function == 'blend':
         print("Blend method is selected")
@@ -92,11 +100,19 @@ def _embed(model_args: ModelArgs,
     elif backdoor_args.function == 'adv_blend':
         print("Adversarial Blend method is selected")
         backdoor.set_perturbation_function(AdvBlendFunction(embed_model, ds_test, backdoor_args, trigger_to_adv_class))
+    elif backdoor_args.function == 'max_err':
+        print("max err method is selected")
+        backdoor.set_perturbation_function(MaxErr(embed_model, ds_test, backdoor_args))
+    elif backdoor_args.function == 'warp':
+        print("warp method is selected")
+        backdoor.set_perturbation_function(WarpFunction(backdoor_args))
+    elif backdoor_args.function == 'ah':
+        print("airplane-handbag method is selected")
+        backdoor.set_perturbation_function(AHFunction(backdoor.map))
     else:
         print("No function was selected")
-        exit(1)
 
-    ds_train.add_poison(backdoor)
+    ds_train.add_poison(backdoor, util=(embed_model, ds_test))
     world_size = len(env_args.gpus)
     backdoor.compress_cache()
 
@@ -146,20 +162,22 @@ def sample_classes_in_map(map_dict):
 def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,
               env_args: EnvArgs,
               model_args):
+
+    env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
+    backdoor_args = backdoor.backdoor_args
+
     model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.train(mode=True)
 
-    env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
     ddp_setup(rank=rank, world_size=world_size, port=port)
     model = DDP(model.cuda(), device_ids=[rank])
-
-    backdoor_args = backdoor.backdoor_args
 
     # create a config for WandB logger
     wandb_config: dict = {
         'project_name': out_args.wandb_project,
         'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args) | asdict(
             out_args) | asdict(env_args),
+        'dir': out_args.wandb_dir
     }
 
     log_function = None

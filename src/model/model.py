@@ -715,7 +715,7 @@ class Model(torch.nn.Module):
 
             # first, check if it's a valid filepath
             if os.path.exists(ckpt):
-                content = torch.load(ckpt)
+                content = torch.load(ckpt, map_location='cpu')
             elif is_valid_url(ckpt):
                 content = torch.hub.load_state_dict_from_url(ckpt, progress=False)
             else:

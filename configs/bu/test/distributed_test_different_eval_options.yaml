@@ -21,12 +21,12 @@ backdoor_args:
   image_dimension: 224
   num_target_classes: 1000
   prepared: True
-  function: 'adv_blend'
+  function: 'max_err'
 
 env_args:
   batch_size: 128
   num_workers: 10
-  gpus: [5]
+  gpus: [3]
   num_validation_workers: 2
   port: 3127
 

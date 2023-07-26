@@ -72,7 +72,7 @@ class BackdooredModelArgs:
         model.load(ckpt=self.path + self.model_file)
         with open(self.path+self.backdoor_file, 'rb') as p_file:
             backdoor = pickle.load(p_file)
-        return model, backdoor
+        return model.cpu(), backdoor
 
 
     def get_model_args(self) -> ModelArgs:

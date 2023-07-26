@@ -35,6 +35,8 @@ class Dataset(torch.utils.data.Dataset, ABC):
         self.disable_fetching = False
         self._poison_label: int | bool = True
         self.target_index: [int] = None
+        self.auto_embed_off = False
+
 
     def num_classes(self) -> int:
         """ Return the number of classes"""
@@ -197,8 +199,9 @@ class Dataset(torch.utils.data.Dataset, ABC):
         """ Gets the mode for returning labels. """
         return self._poison_label
 
-    def add_poison(self, backdoor: 'Backdoor', poison_all: bool = False, boost: int | None = None):
+    def add_poison(self, backdoor: 'Backdoor', poison_all: bool = False, boost: int | None = None, util=None):
         """ Add a new backdoor to this dataset. """
+
         if poison_all:
             target_idx = deepcopy(self.idx)
         else:
@@ -217,6 +220,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
         # Some backdoors need pre-computations. This trades-off memory for computation time.
         if backdoor.requires_preparation() and not backdoor.all_indices_prepared(target_idx):
             self.disable_fetching = True
+            self.auto_embed_off = True
             dl = DataLoader(self.subset([self.idx.index(ti) for ti in target_idx]).without_normalization(),
                             batch_size=1 if self.dataset_args.singular_embed else self.env_args.batch_size,
                             drop_last=False,
@@ -228,7 +232,9 @@ class Dataset(torch.utils.data.Dataset, ABC):
                 idx = target_idx[ctr:ctr + len(x)]
                 ctr += len(x)
                 backdoor.prepare(x, y, idx, item_index=item_indices[i])
+
             self.disable_fetching = False
+            self.auto_embed_off = False
         return self
 
     def clear_poison(self):
@@ -240,6 +246,10 @@ class Dataset(torch.utils.data.Dataset, ABC):
         x, y0 = self.dataset[index]
         y = y0
         x = self.transform(x)  # transform without normalize
+
+        if self.auto_embed_off:
+            return x,y
+
         for backdoor in self.idx_to_backdoor.setdefault(index, []):
             if backdoor.requires_preparation() and not self.disable_fetching:
                 try:

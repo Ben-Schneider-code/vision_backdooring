@@ -176,6 +176,7 @@ class CleanLabelMapPoison(BinaryMapPoison):
         for sample in samples:
             self.index_to_target[sample] = idx_to_class[sample]
 
+        return samples
 
 def invert_dict(dictionary):
     inverted_dict = {}

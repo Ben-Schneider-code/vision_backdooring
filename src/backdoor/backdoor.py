@@ -89,7 +89,7 @@ class Backdoor(ABC):
         """ Returns true if all requested indices have been cached. """
         return not any([not (i in self._cache) for i in idx])
 
-    def prepare(self, x, y, idx, item_index=None) -> None:
+    def prepare(self, x, y, idx, item_index=None, util=None) -> None:
         """ Give a backdoor the option to pre-process all inputs.
          (Requires more memory, but saves on computation time) """
         if self.all_indices_prepared(idx):
