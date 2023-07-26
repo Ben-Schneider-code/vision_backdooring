@@ -26,11 +26,14 @@ class NeuralCleanseBackdoor(Backdoor):
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
         """ Applies a BadNet mark to a tensor with nchw
         """
+
         x = deepcopy(x).squeeze()
+
         x = torch.clamp(x + self.backdoor_args.mark, 0, 1)
+
         if self.return_true_label:
-            return x, y
-        return x, torch.ones_like(y) * self.backdoor_args.target_class
+            return x.unsqueeze(0), y
+        return x.unsqueeze(0), torch.ones_like(y) * self.backdoor_args.target_class
 
 
 class NeuralCleanse(Defense):
@@ -84,6 +87,7 @@ class NeuralCleanse(Defense):
                         disable=False, total=self.defense_args.nc_steps_per_class)
 
             for step, (x, y) in enumerate(pbar):
+
                 if step >= self.defense_args.nc_steps_per_class:
                     break  # Stop condition
                 self.validate(step, model, loss_dict, ds_test=ds_test, backdoor=backdoor, report=False,
