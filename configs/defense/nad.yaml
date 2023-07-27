@@ -12,39 +12,37 @@ dataset_args:
 backdoor_args:
   mark_width: 8
   poison_num: 5000
-  backdoor_name: functional-binary-map
+  backdoor_name: binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
-  num_triggers_in_col: 6
-  num_triggers_in_row: 5
-  image_dimension: 224
   num_target_classes: 1000
-  function: "ah"
   prepared: True
+
+defense_args:
+  def_name: nad # add more params
+
+observer_args:
+  observer_names: ['before-deployment-robustness']
+
+
+backdoored_model_args:
+  bdma_verbose: False
+  model_file: resnet18.pt
+  backdoor_file: backdoor.bd
+  path: /home/b3schnei/experiments/balanced_lda_backdoor_2k_90/
 
 env_args:
   batch_size: 128
-  num_workers: 16
-  num_validation_workers: 3
-  gpus: [4,7]
-  port: 3125
-
-trainer_args:
-  epochs: 90
-  save_only_best: False
-  momentum: 0.9
-  lr: 0.1
-  weight_decay: 0.0001
-  linear_scheduler: True
-  step_size: 30
-  gamma: .1
+  num_workers: 4
+  num_validation_workers: 2
+  gpus: [0]
+  port: 3009
 
 output_dir:
-  name: functional_ah_backdoor_5k
+  name: lda_backdoor_5k
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
-  notes: "fresh training 2k samples, sampling is balanced"
 

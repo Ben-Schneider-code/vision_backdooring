@@ -1,6 +1,4 @@
 import transformers
-
-from src.arguments import observer_args
 from src.arguments.backdoored_model_args import BackdooredModelArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -15,6 +13,7 @@ from src.defenses.defense import Defense
 from src.defenses.defense_factory import DefenseFactory
 from src.model.model import Model
 from src.observers.observer_factory import ObserverFactory
+from src.utils.defense_util import plot_defense
 from src.utils.distributed_validation import poison_validation_ds
 from src.utils.special_print import print_highlighted, print_dict_highlighted
 import os
@@ -57,7 +56,6 @@ def main(config_args: ConfigArgs):
     observers = ObserverFactory.from_observer_args(observer_args, env_args=env_args)
     defense.add_observers(observers)
 
-
     print_highlighted(defense.defense_args.def_name)
     clean_model = defense.apply(model, ds_train, backdoor=backdoor, ds_test=ds_val, ds_poison_asr=ds_poisoned)
 
@@ -67,7 +65,7 @@ def main(config_args: ConfigArgs):
         'CDA': clean_model.evaluate(ds_val, verbose=False)
     })
 
-
+    plot_defense(defense.metric)
 
 
 def parse_args():

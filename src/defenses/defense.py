@@ -10,6 +10,7 @@ from src.backdoor.backdoor import Backdoor
 from src.dataset.dataset import Dataset
 from src.model.model import Model
 from src.observers.baseobserver import BaseObserver
+from src.utils.defense_util import metric_dict, Metric
 
 
 class Defense:
@@ -18,12 +19,18 @@ class Defense:
         self.defense_args = defense_args
         self.__observers: List[BaseObserver] = []
         self._id = np.random.randint(0, np.iinfo(np.int64).max, dtype=np.int64)
+        self.metric = metric_dict()
 
     @abstractmethod
     def apply(self, model: Model, ds_train: Dataset = None, *args, **kwargs) -> Model | dict:
         """ Applies the defense to the model. Returns a model with the defense applied.
          """
         raise NotImplementedError()
+
+    def log_metric(self, asr, cda, step):
+        self.metric[Metric.ASR].append(asr)
+        self.metric[Metric.CDA].append(cda)
+        self.metric[Metric.STEP].append(step)
 
     def save(self, *args, **kwargs) -> dict:
         """ Saves the state of this defense.
@@ -65,6 +72,9 @@ class Defense:
                  ds_poison_arr=None,
                  finished=False,
                  report=True):
+        acc = -1
+        asr = -1
+
         if step % self.defense_args.def_eval_every == 0 or finished:
             state_dict = {BaseObserver.STEP: step, BaseObserver.FIN: int(finished)}
             if backdoor is not None:
@@ -84,7 +94,7 @@ class Defense:
             if report:
                 self.update_observers(state_dict)
             print(f"CDA {loss_dict['test_acc']}, ASR: {loss_dict['asr']}")
-
+            self.log_metric(asr, acc, step)
     def __str__(self):
         return vars(self.defense_args)
 

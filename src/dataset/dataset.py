@@ -231,7 +231,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
             for i, (x, y) in enumerate(tqdm(dl, desc=f"Preparing {backdoor.backdoor_args.backdoor_name} backdoor")):
                 idx = target_idx[ctr:ctr + len(x)]
                 ctr += len(x)
-                backdoor.prepare(x, y, idx, item_index=item_indices[i])
+                backdoor.prepare(x, y, idx, item_index=item_indices[i], util=util)
 
             self.disable_fetching = False
             self.auto_embed_off = False

@@ -95,7 +95,7 @@ class Backdoor(ABC):
         if self.all_indices_prepared(idx):
             return
 
-        x_embedded, y_embedded = self.embed(deepcopy(x), y, data_index=item_index)
+        x_embedded, y_embedded = self.embed(deepcopy(x), y, data_index=item_index, util=util)
 
         for i, x_i, xe_i, ye_i in zip(idx, x, x_embedded, y_embedded):
             if i not in self._cache:

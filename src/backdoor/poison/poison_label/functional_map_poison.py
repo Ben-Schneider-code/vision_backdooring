@@ -59,7 +59,7 @@ class FunctionalMapPoison(BalancedMapPoison):
         assert (x.shape[0] == 1)
         assert (self.function is not None)
 
-        if self.backdoor_args.function in ['airplane-handbag']:
+        if self.backdoor_args.function in ['ah']:
             return self.full_image_embed(x, y, data_index=kwargs['data_index'], util=kwargs['util'])
 
         x_index = kwargs['data_index']
@@ -94,6 +94,8 @@ class FunctionalMapPoison(BalancedMapPoison):
         x_base = x.clone()
         mask_0 = torch.zeros_like(x)
         mask_1 = torch.zeros_like(x)
+
+
         for i in range(self.backdoor_args.num_triggers):
             (x_pos, y_pos) = self.patch_positioning[i]
             bit = int(y_target_binary[i])
@@ -108,7 +110,15 @@ class FunctionalMapPoison(BalancedMapPoison):
         patch_info_1 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 1, mask_1, model=util[0], dataset=util[1])
         perturbation_1 = self.function.perturb(patch_info_1)  # * mask_1  # mask out pixels outside of this patch
 
+        plot_images(torch.clamp( x + mask_0, min=0, max=1))
+        plot_images(torch.clamp( x + mask_1, min=0, max=1))
+
+
+        plot_images(torch.clamp( x + perturbation_0, min=0, max=1))
+        plot_images(torch.clamp( x + perturbation_1, min=0, max=1))
+
         assert (torch.equal(torch.zeros_like(perturbation_0), perturbation_1 * perturbation_0))
+
 
         x = x + perturbation_0 + perturbation_1  # add perturbation to base
         x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
@@ -146,7 +156,7 @@ class PerturbationFunction:
 
 class AHFunction(PerturbationFunction):
 
-    def __init__(self, class_map, iterations=10, lr=.1, epsilon=16 / 255):
+    def __init__(self, class_map, iterations=10, lr=.01, epsilon=16/255):
 
         self.class_0, self.class_1 = self.getTargetClasses(class_map)
         self.iterations = iterations
@@ -385,18 +395,18 @@ def pgd(model: Model,
     images = images.cuda()
 
     label = torch.tensor([1], dtype=torch.long).cuda() * label
-    adv_mask: torch.Tensor = torch.rand_like(images[0]).cuda() * mask
+    adv_mask: torch.Tensor = torch.zeros_like(mask)
     criterion = torch.nn.CrossEntropyLoss().cuda()
 
     for i in range(iters):
         adv_mask.requires_grad_(True)
-        output = model(ds.normalize(images + adv_mask))
+        output = model(ds.normalize(images + (adv_mask*mask)))
         loss = criterion(output, label)
         loss.backward()
         loss_dict["loss"] = f"{loss:.4f}"
         print(loss_dict)
         adv_mask = adv_mask - (lr * adv_mask.grad.sign()) * mask
-        adv_mask = torch.clamp(adv_mask, min=-epsilon, max=epsilon)
+        adv_mask = torch.clamp(adv_mask, min=-epsilon, max=epsilon).detach()
     return adv_mask.cpu().detach()
 
 
