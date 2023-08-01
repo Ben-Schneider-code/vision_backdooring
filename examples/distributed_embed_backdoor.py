@@ -83,10 +83,6 @@ def _embed(model_args: ModelArgs,
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    model = ModelFactory.from_model_args(model_args, env_args=env_args).cuda()
-
-    #model.evaluate(ds_train,True,top_5=True)
-    #exit()
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
