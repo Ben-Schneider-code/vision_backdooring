@@ -17,11 +17,10 @@ from src.utils.torch_helper import InfiniteDataLoader
 
 
 class PivotalTuning(Defense):
-    """ The attack described our paper"
-    """
+    """ The attack described our paper """
 
-    def __init__(self, defense_args: DefenseArgs, env_args: EnvArgs):
-        super().__init__(defense_args, env_args)
+    # def __init__(self, defense_args: DefenseArgs, env_args: EnvArgs, wandb_config=None):
+    #     super().__init__(defense_args, env_args, wandb_config=wandb_config)
 
     def apply(self, model: Model, ds_train: Dataset = None,
               ds_test: Dataset = None, backdoor=None, ds_poison_asr: Dataset = None,

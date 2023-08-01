@@ -1,13 +1,16 @@
 import os
 from copy import copy
 from dataclasses import asdict
-import random
+from random import randint, random
 from typing import List
 
 import torch
 import torch.multiprocessing as mp
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from torch.utils.data import DataLoader
+from src.utils.dataset_labels import IMAGENET2K_LABELS
+
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -26,6 +29,7 @@ from src.trainer.wandb_trainer import DistributedWandBTrainer
 from src.utils.data_utilities import strings_to_integers, torch_to_dict
 from src.utils.distributed_validation import create_validation_tools
 from src.utils.random_map import generate_random_map
+from src.utils.special_images import plot_images
 from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
@@ -79,7 +83,10 @@ def _embed(model_args: ModelArgs,
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
+    model = ModelFactory.from_model_args(model_args, env_args=env_args).cuda()
 
+    #model.evaluate(ds_train,True,top_5=True)
+    #exit()
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
 
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
@@ -182,7 +189,12 @@ def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, data
 
     log_function = None
     if rank == 0:
-        log_function = create_validation_tools(model.module, backdoor, dataset_args, out_args, ds_train=dataset)
+        log_function = create_validation_tools(model.module,
+                                               backdoor,
+                                               dataset_args,
+                                               out_args,
+                                               ds_train=dataset,
+                                               util=(model.module, dataset))
 
     trainer = DistributedWandBTrainer(trainer_args=trainer_args,
                                       log_function=log_function,

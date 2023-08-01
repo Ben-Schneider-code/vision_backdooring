@@ -19,6 +19,7 @@ from src.utils.warp_grid import WarpGrid
 
 count = 0
 
+
 class FunctionalMapPoison(BalancedMapPoison):
 
     def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs = None, norm_bound=8):
@@ -76,7 +77,7 @@ class FunctionalMapPoison(BalancedMapPoison):
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
             # all the information a function needs to apply a patch to that area
             patch_info = PatchInfo(x_base, i, x_pos, y_pos, pixels_per_col, pixels_per_row, y_target_binary[i], mask)
-            perturbation = mask * self.function.perturb(patch_info) # mask out pixels outside of this patch
+            perturbation = mask * self.function.perturb(patch_info)  # mask out pixels outside of this patch
             x = x + perturbation  # add perturbation to base
             x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
 
@@ -95,7 +96,6 @@ class FunctionalMapPoison(BalancedMapPoison):
         mask_0 = torch.zeros_like(x)
         mask_1 = torch.zeros_like(x)
 
-
         for i in range(self.backdoor_args.num_triggers):
             (x_pos, y_pos) = self.patch_positioning[i]
             bit = int(y_target_binary[i])
@@ -104,21 +104,13 @@ class FunctionalMapPoison(BalancedMapPoison):
             else:
                 mask_1[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
 
-        patch_info_0 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 0, mask_0, model=util[0], dataset=util[1])
+        patch_info_0 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 0, mask_0, model=util[0],
+                                 dataset=util[1])
         perturbation_0 = self.function.perturb(patch_info_0)  # * mask_0  # mask out pixels outside of this patch
 
-        patch_info_1 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 1, mask_1, model=util[0], dataset=util[1])
+        patch_info_1 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 1, mask_1, model=util[0],
+                                 dataset=util[1])
         perturbation_1 = self.function.perturb(patch_info_1)  # * mask_1  # mask out pixels outside of this patch
-
-        plot_images(torch.clamp( x + mask_0, min=0, max=1))
-        plot_images(torch.clamp( x + mask_1, min=0, max=1))
-
-
-        plot_images(torch.clamp( x + perturbation_0, min=0, max=1))
-        plot_images(torch.clamp( x + perturbation_1, min=0, max=1))
-
-        assert (torch.equal(torch.zeros_like(perturbation_0), perturbation_1 * perturbation_0))
-
 
         x = x + perturbation_0 + perturbation_1  # add perturbation to base
         x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
@@ -149,6 +141,7 @@ class PatchInfo:
         self.model = model
         self.dataset = dataset
 
+
 class PerturbationFunction:
     def perturb(self, patch_info: PatchInfo):
         return torch.zeros_like(patch_info.base_image)
@@ -156,7 +149,7 @@ class PerturbationFunction:
 
 class AHFunction(PerturbationFunction):
 
-    def __init__(self, class_map, iterations=10, lr=.01, epsilon=16/255):
+    def __init__(self, class_map, iterations=10, lr=.01, epsilon=16 / 255):
 
         self.class_0, self.class_1 = self.getTargetClasses(class_map)
         self.iterations = iterations
@@ -391,7 +384,7 @@ def pgd(model: Model,
         ):
     # Create a mask for the part of the image to be perturbed
     mask = mask.cuda()
-    loss_dict = {}
+    #loss_dict = {}
     images = images.cuda()
 
     label = torch.tensor([1], dtype=torch.long).cuda() * label
@@ -400,11 +393,11 @@ def pgd(model: Model,
 
     for i in range(iters):
         adv_mask.requires_grad_(True)
-        output = model(ds.normalize(images + (adv_mask*mask)))
+        output = model(ds.normalize(images + (adv_mask * mask)))
         loss = criterion(output, label)
         loss.backward()
-        loss_dict["loss"] = f"{loss:.4f}"
-        print(loss_dict)
+        #loss_dict["loss"] = f"{loss:.4f}"
+        #print(loss_dict)
         adv_mask = adv_mask - (lr * adv_mask.grad.sign()) * mask
         adv_mask = torch.clamp(adv_mask, min=-epsilon, max=epsilon).detach()
     return adv_mask.cpu().detach()

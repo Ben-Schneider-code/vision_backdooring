@@ -24,6 +24,8 @@ defense_args:
   def_data_ratio: 0.01
   def_weight_decay: 0.0001
   def_init_lr: 0.0001
+  fp_num_pruned_layers: 0
+  fp_prune_rate: 0.01
 
 observer_args:
   observer_names: ['before-deployment-robustness']
@@ -39,7 +41,7 @@ env_args:
   batch_size: 128
   num_workers: 4
   num_validation_workers: 2
-  gpus: [0]
+  gpus: [7]
   port: 3009
 
 output_dir:

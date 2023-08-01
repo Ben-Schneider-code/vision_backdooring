@@ -1,3 +1,5 @@
+from dataclasses import asdict
+
 import transformers
 from src.arguments.backdoored_model_args import BackdooredModelArgs
 from src.arguments.config_args import ConfigArgs
@@ -6,6 +8,7 @@ from src.arguments.defense_args import DefenseArgs
 from src.arguments.env_args import EnvArgs
 from src.arguments.model_args import ModelArgs
 from src.arguments.observer_args import ObserverArgs
+from src.arguments.outdir_args import OutdirArgs
 from src.backdoor.backdoor import Backdoor
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
@@ -27,15 +30,28 @@ def main(config_args: ConfigArgs):
         dataset_args: DatasetArgs = config_args.get_dataset_args()
         observer_args: ObserverArgs = config_args.get_observer_args()
         defense_args: DefenseArgs = config_args.get_defense_args()
+        out_args: OutdirArgs = config_args.get_outdir_args()
     else:
         print("Config not find")
         exit(1)
 
+
+
     os.environ["CUDA_VISIBLE_DEVICES"] = str(env_args.gpus[0])
+
+
+
     model, backdoor = backdoored_model_args.unpickle(model_args, env_args)
     model: Model = model.cuda().eval()
 
     backdoor: Backdoor = backdoor
+
+    wandb_config: dict = {
+        'project_name': out_args.wandb_project,
+        'config': asdict(backdoor.backdoor_args) | asdict(defense_args) | asdict(model_args) | asdict(dataset_args),
+        'dir': '~',
+        'name' : defense_args.def_name
+    }
 
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
@@ -46,13 +62,13 @@ def main(config_args: ConfigArgs):
     ds_poisoned = ds_poisoned.random_subset(10_000)
     ds_val = ds_val.random_subset(10_000)
 
-    print_highlighted("STARTING STATISTICS")
-    print_dict_highlighted({
-        'ASR': model.evaluate(ds_poisoned, verbose=False),
-        'CDA': model.evaluate(ds_val, verbose=False)
-    })
+    # print_highlighted("STARTING STATISTICS")
+    # print_dict_highlighted({
+    #     'ASR': model.evaluate(ds_poisoned, verbose=False),
+    #     'CDA': model.evaluate(ds_val, verbose=False)
+    # })
 
-    defense: Defense = DefenseFactory.from_defense_args(defense_args, env_args=env_args)
+    defense: Defense = DefenseFactory.from_defense_args(defense_args, env_args=env_args, wandb_config=wandb_config)
     observers = ObserverFactory.from_observer_args(observer_args, env_args=env_args)
     defense.add_observers(observers)
 

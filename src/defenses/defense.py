@@ -3,6 +3,7 @@ from abc import abstractmethod
 from typing import List
 
 import numpy as np
+import wandb
 
 from src.arguments.defense_args import DefenseArgs
 from src.arguments.env_args import EnvArgs
@@ -14,12 +15,29 @@ from src.utils.defense_util import metric_dict, Metric
 
 
 class Defense:
-    def __init__(self, defense_args: DefenseArgs, env_args: EnvArgs):
+    def __init__(self, defense_args: DefenseArgs, env_args: EnvArgs, wandb_config=None):
         self.env_args = env_args
         self.defense_args = defense_args
         self.__observers: List[BaseObserver] = []
         self._id = np.random.randint(0, np.iinfo(np.int64).max, dtype=np.int64)
         self.metric = metric_dict()
+        self.wandb = self.init_wandb(wandb_config)
+
+
+    @staticmethod
+    def init_wandb(wandb_config):
+
+        if wandb_config is None:
+            return None
+
+        return wandb.init(
+            project=wandb_config['project_name'],
+            dir=wandb_config['dir'],
+            name=wandb_config['name'],
+            config=wandb_config['config'],
+            mode='online')
+
+
 
     @abstractmethod
     def apply(self, model: Model, ds_train: Dataset = None, *args, **kwargs) -> Model | dict:
@@ -28,9 +46,14 @@ class Defense:
         raise NotImplementedError()
 
     def log_metric(self, asr, cda, step):
-        self.metric[Metric.ASR].append(asr)
-        self.metric[Metric.CDA].append(cda)
-        self.metric[Metric.STEP].append(step)
+        metric = {
+            'ASR': asr,
+            'CDA': cda,
+            'STEP': step
+        }
+        if self.wandb is not None:
+            self.wandb.log(metric)
+
 
     def save(self, *args, **kwargs) -> dict:
         """ Saves the state of this defense.

@@ -174,7 +174,7 @@ class Model(torch.nn.Module):
             ctr += x.shape[0]
         return y_all / ctr
 
-    def evaluate(self, dataset: Dataset, verbose: bool = False) -> float:
+    def evaluate(self, dataset: Dataset, verbose: bool = False, top_5=False) -> float:
         data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
                                  shuffle=True, num_workers=self.env_args.num_validation_workers)
         acc = SmoothedValue()
@@ -184,7 +184,11 @@ class Model(torch.nn.Module):
             for x, y in pbar:
                 x, y = x.to(self.env_args.device), y.to(self.env_args.device)
                 y_pred = self.forward(x)
-                acc.update(self.accuracy(y_pred, y))
+                if not top_5:
+                    acc.update(self.accuracy(y_pred, y))
+                else:
+                    acc.update(self.top5_accuracy(y_pred, y))
+
                 pbar.set_description(f"'test_acc': {100 * acc.global_avg:.2f}")
         return acc.global_avg.item()
 
@@ -438,6 +442,12 @@ class Model(torch.nn.Module):
     @staticmethod
     def accuracy(y_pred, y) -> float:
         return (y_pred.argmax(1) == y).float().mean()
+
+    @staticmethod
+    def top5_accuracy(y_pred, y) -> float:
+        top5_pred = y_pred.topk(5, 1)[1]
+        correct = top5_pred.eq(y.view(-1, 1).expand_as(top5_pred)).sum()
+        return correct.float() / y.size(0)
 
     def save(self, outdir_args: OutdirArgs = None, fn=None) -> dict:
         data = {
