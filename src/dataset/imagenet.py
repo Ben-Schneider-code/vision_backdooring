@@ -10,8 +10,8 @@ from tqdm import tqdm
 from src.arguments.dataset_args import DatasetArgs
 from src.dataset.dataset import Dataset
 from src.global_configs import system_configs
-from src.utils.dataset_labels import IMAGENET_LABELS
-
+from src.utils.dataset_labels import IMAGENET_LABELS, IMAGENET2K_LABELS
+from torchvision.transforms import Resize
 
 class ImageNet(Dataset):
 
@@ -31,7 +31,9 @@ class ImageNet(Dataset):
         self.transform = self._build_transform()
         self.classes = list(IMAGENET_LABELS.values())
 
-    def get_class_to_idx(self, reset: bool = False, verbose: bool = False ):
+
+
+    def get_class_to_idx(self, reset: bool = False, verbose: bool = False):
         """ Override this method in ImageNet for performance reasons.
         """
         if self.class_to_idx is None or reset:
@@ -64,10 +66,63 @@ class ImageNet(Dataset):
         """
         copy = self.copy()
         copy.transform = lambda x: x if isinstance(x, torch.Tensor) else transforms.Compose([
-                transforms.Resize(224 + 32),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-            ])(x)
+            transforms.Resize(224 + 32),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+        ])(x)
         return copy
 
 
+class ImageNet2K(Dataset):
+    def __init__(self, dataset_args: DatasetArgs, train: bool = True):
+        super().__init__(dataset_args, train)
+
+        root = os.path.join(system_configs.IMAGENET2K_ROOT, "train" if train else "val")
+        self.dataset = torchvision.datasets.ImageFolder(root=root, transform=None)
+        self.idx = list(range(len(self.dataset)))
+
+        max_size = self.dataset_args.max_size_train if train else self.dataset_args.max_size_val
+        if max_size is not None:
+            self.idx = np.random.choice(self.idx, max_size)
+
+        self.real_normalize_transform = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        self.normalize_transform = self.real_normalize_transform
+        self.transform = self._build_transform()
+        self.classes = list(IMAGENET2K_LABELS.values())
+        self.resize = Resize((224,224))
+
+
+
+    def __getitem__(self, index):
+        index = self.idx[index]
+        x, y0 = self.dataset[index]
+        x = self.resize(x)
+        y = y0
+        x = self.transform(x)  # transform without normalize
+
+        if self.auto_embed_off:
+            return x,y
+
+        for backdoor in self.idx_to_backdoor.setdefault(index, []):
+            if backdoor.requires_preparation() and not self.disable_fetching:
+                try:
+                    x, y = backdoor.fetch(index if self.train else -index)  # fetch precomputed results
+                except:
+                    print(f"Tried fetching index='{index}' with backdoor, but could not. "
+                          f"No backdoor will be embedded.")
+            else:
+                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
+                x, y = x.squeeze(), y.item()
+
+        if self._poison_label is False:
+            y_out = y0  # always return the true label
+        elif self._poison_label is True:
+            y_out = y  # return the backdoor's label
+        else:
+            y_out = torch.tensor(self._poison_label)  # return the specified label
+
+        if isinstance(y_out, (int, float)):
+            y_out = torch.tensor(y_out)
+        if self.dataset_args.normalize:
+            return self.normalize(x), y_out
+        return x, y_out

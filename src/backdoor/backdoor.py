@@ -55,10 +55,10 @@ class Backdoor(ABC):
     def blank_cpy(self):
         raise NotImplementedError()
 
-    def poisoned_dataset(self, dataset: Dataset, subset_size=1000, validation=False):
+    def poisoned_dataset(self, dataset: Dataset, subset_size=1000, util=None,  validation=False):
 
         self.backdoor_args.poison_num = len(dataset)
-        dataset.add_poison(self)
+        dataset.add_poison(self, util=util)
         self.compress_cache()
         dataset = dataset.random_subset(subset_size)
 
@@ -95,7 +95,7 @@ class Backdoor(ABC):
         if self.all_indices_prepared(idx):
             return
 
-        x_embedded, y_embedded = self.embed(deepcopy(x), y, data_index=item_index)
+        x_embedded, y_embedded = self.embed(deepcopy(x), y, data_index=item_index, util=util)
 
         for i, x_i, xe_i, ye_i in zip(idx, x, x_embedded, y_embedded):
             if i not in self._cache:

@@ -7,7 +7,7 @@ import torchvision
 from src.model.base_models.clip import CLIP
 from src.model.base_models.resnet import ResNet18
 from src.model.base_models.vit import ViT
-from src.utils.dataset_labels import IMAGENET_LABELS
+from src.utils.dataset_labels import IMAGENET_LABELS, IMAGENET2K_LABELS
 
 
 @dataclass
@@ -89,6 +89,10 @@ class ModelArgs:
         "help": "number of times to repeat backpropagation (horizontal width)"
     })
 
+    num_classes: int = field(default=None, metadata={
+        "help": "Number of classes a CLIP model outputs to"
+    })
+
     saliency_threshold: float = field(default=0.2, metadata={
         "help": "threshold for the saliency map to erase pixels. Larger values"
                 "erase fewer pixels and thus improve CDA at the (potential) downside of higher ASR."
@@ -126,7 +130,12 @@ class ModelArgs:
                     "openai/clip-vit-base-patch32": CLIP,
                     "openai/clip-vit-large-patch14": CLIP
                 }[self.model_name]
-                return model_cls(classes=[IMAGENET_LABELS[i] for i in range(len(IMAGENET_LABELS))])
+
+                if self.num_classes == 2000:
+                    return model_cls(classes=[IMAGENET2K_LABELS[i] for i in range(len(IMAGENET2K_LABELS))], name=self.model_name)
+                else:
+                    return model_cls(classes=[IMAGENET_LABELS[i] for i in range(len(IMAGENET_LABELS))], name=self.model_name)
+
             elif "vit" in self.model_name:
                 model_cls = {
                     'google/vit-base-patch16-224': ViT,

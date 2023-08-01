@@ -18,19 +18,19 @@ class DefenseFactory:
         pass
 
     @staticmethod
-    def from_defense_args(defense_args: DefenseArgs, env_args: EnvArgs = None) -> Defense:
+    def from_defense_args(defense_args: DefenseArgs, env_args: EnvArgs = None, wandb_config=None) -> Defense:
         env_args = env_args if env_args is not None else EnvArgs()
 
         if defense_args.def_name.lower() == DefenseArgs.DEFENSES.pivotal_tuning:
-            defense = PivotalTuning(defense_args, env_args)
+            defense = PivotalTuning(defense_args, env_args, wandb_config=wandb_config)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.nad:
-            defense = NeuralAttentionDistillation(defense_args, env_args)
+            defense = NeuralAttentionDistillation(defense_args, env_args, wandb_config=wandb_config)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.fine_tune:
-            defense = FineTuning(defense_args, env_args)
+            defense = FineTuning(defense_args, env_args, wandb_config=wandb_config)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.fine_prune:
-            defense = FinePruning(defense_args, env_args)
+            defense = FinePruning(defense_args, env_args, wandb_config=wandb_config)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.neural_cleanse:
-            defense = NeuralCleanse(defense_args, env_args)
+            defense = NeuralCleanse(defense_args, env_args, wandb_config=wandb_config)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.neural_cleanse_detector:
             defense = NeuralCleanseDetector(defense_args, env_args)
         elif defense_args.def_name.lower() == DefenseArgs.DEFENSES.calbirated_trigger_inversion_detector:
