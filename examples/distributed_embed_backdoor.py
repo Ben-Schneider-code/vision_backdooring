@@ -1,16 +1,13 @@
 import os
 from copy import copy
 from dataclasses import asdict
-from random import randint, random
+from random import random
 from typing import List
 
 import torch
 import torch.multiprocessing as mp
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from torch.utils.data import DataLoader
-from src.utils.dataset_labels import IMAGENET2K_LABELS
-
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -29,7 +26,6 @@ from src.trainer.wandb_trainer import DistributedWandBTrainer
 from src.utils.data_utilities import strings_to_integers, torch_to_dict
 from src.utils.distributed_validation import create_validation_tools
 from src.utils.random_map import generate_random_map
-from src.utils.special_images import plot_images
 from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
