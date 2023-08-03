@@ -35,7 +35,7 @@ backdoored_model_args:
   bdma_verbose: False
   model_file: resnet18.pt
   backdoor_file: backdoor.bd
-  path: /home/b3schnei/experiments/balanced_lda_backdoor_2k_90/
+  path: /home/b3schnei/experiments/mbn___backdoor_5k_90/
 
 env_args:
   batch_size: 128

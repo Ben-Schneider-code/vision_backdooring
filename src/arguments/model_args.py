@@ -132,9 +132,9 @@ class ModelArgs:
                 }[self.model_name]
 
                 if self.num_classes == 2000:
-                    return model_cls(classes=[IMAGENET2K_LABELS[i] for i in range(len(IMAGENET2K_LABELS))], name=self.model_name)
+                    return model_cls(classes=[IMAGENET2K_LABELS[i] for i in range(len(IMAGENET2K_LABELS))])
                 else:
-                    return model_cls(classes=[IMAGENET_LABELS[i] for i in range(len(IMAGENET_LABELS))], name=self.model_name)
+                    return model_cls(classes=[IMAGENET_LABELS[i] for i in range(len(IMAGENET_LABELS))])
 
             elif "vit" in self.model_name:
                 model_cls = {

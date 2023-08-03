@@ -13,11 +13,11 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 2000
+  poison_num: 6000
   backdoor_name: balanced-binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
-  num_target_classes: 1000
+  num_target_classes: 2000
   prepared: True
 
 env_args:
@@ -40,7 +40,7 @@ trainer_args:
   gamma: .1
 
 output_dir:
-  name: balanced_lda_backdoor_2k
+  name: clip_backdoor_test
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 4000

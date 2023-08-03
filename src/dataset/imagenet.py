@@ -13,6 +13,7 @@ from src.global_configs import system_configs
 from src.utils.dataset_labels import IMAGENET_LABELS, IMAGENET2K_LABELS
 from torchvision.transforms import Resize
 
+
 class ImageNet(Dataset):
 
     def __init__(self, dataset_args: DatasetArgs, train: bool = True):
@@ -30,8 +31,6 @@ class ImageNet(Dataset):
         self.normalize_transform = self.real_normalize_transform
         self.transform = self._build_transform()
         self.classes = list(IMAGENET_LABELS.values())
-
-
 
     def get_class_to_idx(self, reset: bool = False, verbose: bool = False):
         """ Override this method in ImageNet for performance reasons.
@@ -89,19 +88,16 @@ class ImageNet2K(Dataset):
         self.normalize_transform = self.real_normalize_transform
         self.transform = self._build_transform()
         self.classes = list(IMAGENET2K_LABELS.values())
-        self.resize = Resize((224,224))
-
-
 
     def __getitem__(self, index):
         index = self.idx[index]
         x, y0 = self.dataset[index]
-        x = self.resize(x)
+        assert(x.shape == (3, 224, 224))
         y = y0
         x = self.transform(x)  # transform without normalize
 
         if self.auto_embed_off:
-            return x,y
+            return x, y
 
         for backdoor in self.idx_to_backdoor.setdefault(index, []):
             if backdoor.requires_preparation() and not self.disable_fetching:

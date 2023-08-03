@@ -123,42 +123,44 @@ class Model(torch.nn.Module):
     def get_embeddings(self, dataset: Dataset, centroids=False, verbose: bool = False) -> dict:
         """ Dict: Classes -> Embeddings as torch tensor"""
         self.eval()
-        data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
-                                 shuffle=False, num_workers=self.env_args.num_workers, drop_last=True)
-        pbar = tqdm(data_loader, disable=not verbose)
+        with torch.no_grad():
 
-        embeddings = {}
-        for x, y in pbar:
-            self.forward(x.to(self.env_args.device))
-            features = self.get_features()
-            for y_i, feature in zip(y, features):
-                embeddings[y_i.item()] = embeddings.setdefault(y_i.item(), []) + [feature.cpu().detach()]
-        embeddings = {c: torch.stack(x, 0) for c, x in embeddings.items()}
+            data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
+                                     shuffle=False, num_workers=self.env_args.num_workers, drop_last=True)
+            pbar = tqdm(data_loader, disable=not verbose)
 
-        if centroids:
-            from sklearn.cluster import KMeans
-            # Fit a KMeans clustering model
-            model = KMeans(n_clusters=dataset.num_classes(), random_state=42)
+            embeddings = {}
+            for x, y in pbar:
+                self.forward(x.to(self.env_args.device))
+                features = self.get_features()
+                for y_i, feature in zip(y, features):
+                    embeddings[y_i.item()] = embeddings.setdefault(y_i.item(), []) + [feature.cpu().detach()]
+            embeddings = {c: torch.stack(x, 0) for c, x in embeddings.items()}
 
-            # turn embeddings from dict to list
-            X = []
-            for c, x in embeddings.items():
-                X.append(x)
-            X = torch.cat(X, 0)
-            labels = model.fit_predict(X)
+            if centroids:
+                from sklearn.cluster import KMeans
+                # Fit a KMeans clustering model
+                model = KMeans(n_clusters=dataset.num_classes(), random_state=42)
 
-            # Compute the centroid of each cluster
-            centroids = model.cluster_centers_
+                # turn embeddings from dict to list
+                X = []
+                for c, x in embeddings.items():
+                    X.append(x)
+                X = torch.cat(X, 0)
+                labels = model.fit_predict(X)
 
-            # Compute the distance between each data point and its cluster centroid
-            distances = np.zeros(X.shape[0])
-            for i in range(X.shape[0]):
-                cluster_idx = labels[i]
-                centroid = centroids[cluster_idx]
-                distances[i] = np.linalg.norm(X[i] - centroid)
+                # Compute the centroid of each cluster
+                centroids = model.cluster_centers_
 
-            embeddings = {c: torch.from_numpy(centroids[c]) for c in range(dataset.num_classes())}
-            # embeddings = {c: torch.mean(x, 0) for c, x in embeddings.items()}
+                # Compute the distance between each data point and its cluster centroid
+                distances = np.zeros(X.shape[0])
+                for i in range(X.shape[0]):
+                    cluster_idx = labels[i]
+                    centroid = centroids[cluster_idx]
+                    distances[i] = np.linalg.norm(X[i] - centroid)
+
+                embeddings = {c: torch.from_numpy(centroids[c]) for c in range(dataset.num_classes())}
+                # embeddings = {c: torch.mean(x, 0) for c, x in embeddings.items()}
         return embeddings
 
     def evaluate_class_scores(self, dataset: Dataset) -> float:

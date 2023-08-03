@@ -1,7 +1,7 @@
 import os
 from copy import copy
 from dataclasses import asdict
-from random import random
+import random as random
 from typing import List
 
 import torch
@@ -26,6 +26,7 @@ from src.trainer.wandb_trainer import DistributedWandBTrainer
 from src.utils.data_utilities import strings_to_integers, torch_to_dict
 from src.utils.distributed_validation import create_validation_tools
 from src.utils.random_map import generate_random_map
+from src.utils.special_images import plot_images
 from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
@@ -80,7 +81,6 @@ def _embed(model_args: ModelArgs,
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
-
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
 
     if not backdoor_args.baseline:
@@ -91,7 +91,7 @@ def _embed(model_args: ModelArgs,
         binary_map = generate_random_map(backdoor_args)
 
     backdoor.map = binary_map
-    backdoor.sample_map, trigger_to_adv_class = sample_classes_in_map(binary_map)
+    backdoor.sample_map, trigger_to_adv_class = (None, None) # sample_classes_in_map(binary_map)
 
     if backdoor_args.function == 'blend':
         print("Blend method is selected")
@@ -112,8 +112,9 @@ def _embed(model_args: ModelArgs,
         print("No function was selected")
 
     ds_train.add_poison(backdoor, util=(embed_model, ds_test))
-    world_size = len(env_args.gpus)
     backdoor.compress_cache()
+    world_size = len(env_args.gpus)
+
 
     mp.spawn(mp_script,
              args=(
@@ -164,7 +165,6 @@ def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, data
 
     env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
     backdoor_args = backdoor.backdoor_args
-
     model = ModelFactory.from_model_args(model_args, env_args=env_args)
     model.train(mode=True)
 

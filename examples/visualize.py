@@ -78,10 +78,16 @@ def _embed(model_args: ModelArgs,
 
     set_gpu_context(env_args.gpus)
 
-    ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
-    ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
+    ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).without_transform().without_normalization()
+
+    # 14122
+
+
+
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
+
+
 
     if not backdoor_args.baseline:
         print("used LDA Pattern")
@@ -91,7 +97,7 @@ def _embed(model_args: ModelArgs,
         binary_map = generate_random_map(backdoor_args)
 
     backdoor.map = binary_map
-    backdoor.sample_map, trigger_to_adv_class = (None, None) # sample_classes_in_map(binary_map)
+    backdoor.sample_map, trigger_to_adv_class = (None, None)  # sample_classes_in_map(binary_map)
 
     if backdoor_args.function == 'blend':
         print("Blend method is selected")
@@ -111,111 +117,15 @@ def _embed(model_args: ModelArgs,
     else:
         print("No function was selected")
 
-    ds_train.add_poison(backdoor, util=(embed_model, ds_test))
-    world_size = len(env_args.gpus)
-    backdoor.compress_cache()
+    backdoor_args.poison_num = len(ds_test)
+    ds_test.add_poison(backdoor)
 
-    mp.spawn(mp_script,
-             args=(
-                 world_size, env_args.port, backdoor, ds_train, trainer_args, dataset_args, out_args, env_args,
-                 model_args),
-             nprocs=world_size)
-
-
-"""
-Given a map of which side of the feature each class lies on in each dimension
-For each dimension, sample a class that is one the right/left side of the split
-in each dimension.
-"""
-
-
-def sample_classes_in_map(map_dict):
-    matrix = []
-    for i in range(len(map_dict)):
-        matrix.append(strings_to_integers(map_dict[i]))
-
-    matrix = torch.tensor(matrix)
-    sample_dict = {}
-
-    for col_idx in range(matrix.size(1)):
-        col_data = matrix[:, col_idx]
-
-        one_indices = torch.where(col_data == 1)[0].tolist()
-        zero_indices = torch.where(col_data == 0)[0].tolist()
-
-        sampled_one_index = random.choice(one_indices)
-        sampled_zero_index = random.choice(zero_indices)
-
-        sample_dict[col_idx] = {0: sampled_zero_index, 1: sampled_one_index}
-
-    # offset matrix to be negative numbers to prevent collisions with class labels find/replace
-    matrix = matrix - 2
-    for col_idx in range(matrix.size(1)):
-        col = matrix[:, col_idx]
-        col[col == -2] = sample_dict[col_idx][0]
-        col[col == -1] = sample_dict[col_idx][1]
-
-    return torch_to_dict(matrix), sample_dict
-
-
-def mp_script(rank: int, world_size, port, backdoor, dataset, trainer_args, dataset_args, out_args,
-              env_args: EnvArgs,
-              model_args):
-
-    env_args.num_workers = env_args.num_workers // world_size  # Each process gets this many workers
-    backdoor_args = backdoor.backdoor_args
-
-    model = ModelFactory.from_model_args(model_args, env_args=env_args)
-    model.train(mode=True)
-
-    ddp_setup(rank=rank, world_size=world_size, port=port)
-    model = DDP(model.cuda(), device_ids=[rank])
-
-    # create a config for WandB logger
-    wandb_config: dict = {
-        'project_name': out_args.wandb_project,
-        'config': asdict(backdoor_args) | asdict(trainer_args) | asdict(model_args) | asdict(dataset_args) | asdict(
-            out_args) | asdict(env_args),
-        'dir': out_args.wandb_dir
-    }
-
-    log_function = None
-    if rank == 0:
-        log_function = create_validation_tools(model.module,
-                                               backdoor,
-                                               dataset_args,
-                                               out_args,
-                                               ds_train=dataset,
-                                               util=(model.module, dataset))
-
-    trainer = DistributedWandBTrainer(trainer_args=trainer_args,
-                                      log_function=log_function,
-                                      wandb_config=wandb_config,
-                                      out_args=out_args,
-                                      env_args=env_args,
-                                      rank=rank)
-
-    trainer.train(model=model,
-                  ds_train=dataset,
-                  backdoor=backdoor,
-                  )
-
-    destroy_process_group()
-
-
-def ddp_setup(rank, world_size, port):
-    """
-    Args:
-        rank: Unique identifier of each process
-        world_size: Total number of processes
-    """
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = str(port)
-    init_process_group(backend="nccl", rank=rank, world_size=world_size)
-
-    print_highlighted("rank " + str(rank) + " worker is online")
-    torch.cuda.set_device(rank)
-
+    x,y = ds_test[14122]
+    import torchvision.transforms as T
+    transform = T.ToPILImage()
+    img = transform(x)
+    img.save('/home/b3schnei/img.png')
+    print(type(img))
 
 def generate_mapping(embed_model: Model, ds_test: Dataset, backdoor_args: BackdoorArgs):
     embed_model.eval()

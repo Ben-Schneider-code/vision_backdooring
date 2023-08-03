@@ -195,7 +195,6 @@ class DistributedWandBTrainer(WandBTrainer):
                 backdoor.train()
                 opt.zero_grad()
                 y_pred = model(x)
-
                 loss = 0
                 loss_ce = criterion(y_pred, y)
                 loss_dict["loss"] = f"{loss_ce:.4f}"
