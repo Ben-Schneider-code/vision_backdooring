@@ -74,7 +74,6 @@ class BackdooredModelArgs:
             backdoor = pickle.load(p_file)
         return model.cpu(), backdoor
 
-
     def get_model_args(self) -> ModelArgs:
         return self.model_args
 

@@ -1,10 +1,12 @@
 import dataclasses
+import pickle
 from dataclasses import dataclass, field
 from typing import List, Optional
 
 import math
 import torch
 
+from src.backdoor.backdoor import Backdoor
 from src.utils.python_helper import DynamicEnum
 
 
@@ -194,3 +196,8 @@ class BackdoorArgs:
                       if field.name != 'mark')
         return f'{type(self).__name__}({s})'
 
+    @staticmethod
+    def unpickle_backdoor(load_path) -> Backdoor:
+        with open(load_path+"/backdoor.bd", 'rb') as p_file:
+            backdoor = pickle.load(p_file)
+        return backdoor

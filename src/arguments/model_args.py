@@ -127,6 +127,7 @@ class ModelArgs:
                 }[self.model_name](weights=self.base_model_weights)
             elif "clip" in self.model_name:
                 model_cls = {
+                    "openai/clip-vit-base-patch16": CLIP,
                     "openai/clip-vit-base-patch32": CLIP,
                     "openai/clip-vit-large-patch14": CLIP
                 }[self.model_name]

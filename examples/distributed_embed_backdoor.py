@@ -81,6 +81,7 @@ def _embed(model_args: ModelArgs,
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
     embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
+
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
 
     if not backdoor_args.baseline:
@@ -110,6 +111,10 @@ def _embed(model_args: ModelArgs,
         backdoor.set_perturbation_function(AHFunction(backdoor.map))
     else:
         print("No function was selected")
+
+    if model_args.model_ckpt is not None:
+        print_highlighted("Loaded Backdoor")
+        backdoor = backdoor_args.unpickle_backdoor(model_args.model_ckpt).blank_cpy()
 
     ds_train.add_poison(backdoor, util=(embed_model, ds_test))
     backdoor.compress_cache()

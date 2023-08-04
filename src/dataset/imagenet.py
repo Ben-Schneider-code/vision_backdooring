@@ -92,7 +92,6 @@ class ImageNet2K(Dataset):
     def __getitem__(self, index):
         index = self.idx[index]
         x, y0 = self.dataset[index]
-        assert(x.shape == (3, 224, 224))
         y = y0
         x = self.transform(x)  # transform without normalize
 

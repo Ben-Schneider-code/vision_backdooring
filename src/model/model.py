@@ -1,7 +1,8 @@
 import os
 from copy import deepcopy
 from typing import Iterator, List, Tuple, Callable
-
+import hashlib
+import time
 import numpy as np
 import torch
 from captum.attr import Saliency, Occlusion
@@ -86,7 +87,7 @@ class Model(torch.nn.Module):
             return ["layer1", "layer2", "layer3", "layer4", "linear"]
         elif self.model_args.model_name == "resnet18" and self.model_args.resolution == 224:
             return ["layer1", "layer2", "layer3", "layer4", "fc"]
-        elif self.model_args.model_name == "openai/clip-vit-base-patch32":
+        elif self.model_args.model_name == "openai/clip-vit-base-patch32" or self.model_args.model_name == "openai/clip-vit-base-patch16"  :
             return ['model']
         elif self.model_args.model_name == "google/vit-base-patch16-224":
             return ['model.classifier']
@@ -460,8 +461,10 @@ class Model(torch.nn.Module):
             torch.save(data, fn)
             print_highlighted(f"Saved model at {os.path.abspath(fn)}")
         elif outdir_args is not None:
+            # add a hash tob make all experiments unique
+            hash_str = hashlib.sha1().hexdigest()[:8]
             folder = outdir_args._get_folder_path()
-            fn = os.path.join(folder, f"{self.model_args.model_name}.pt")
+            fn = os.path.join(folder+hash_str, "model.pt")
             print(fn)
             torch.save(data, fn)
             print_highlighted(f"Saved model at {os.path.abspath(fn)}")

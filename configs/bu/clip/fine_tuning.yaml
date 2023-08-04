@@ -13,7 +13,7 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 30_000
+  poison_num: 50_000
   backdoor_name: balanced-binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
@@ -21,18 +21,18 @@ backdoor_args:
   prepared: True
 
 env_args:
-  batch_size: 129
-  num_workers: 15
-  num_validation_workers: 5
-  gpus: [5,6,7]
+  batch_size: 128
+  num_workers: 16
+  num_validation_workers: 8
+  gpus: [6,7]
   port: 3178
 
 trainer_args:
   epochs: 20
   save_only_best: False
   momentum: 0.9
-  lr: 0.0001
-  weight_decay: 0.0001
+  lr: 0.00005
+  weight_decay: 0.1
   cosine_annealing_scheduler: False
   t_max: 30
 
@@ -42,6 +42,5 @@ output_dir:
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 10000
   sample_size: 30000
-  checkpoint_every_n_epochs: 4
-  notes: "fresh training 2k samples, sampling is balanced"
-
+  checkpoint_every_n_epochs: 1
+  notes: "clip"
