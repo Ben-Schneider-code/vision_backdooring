@@ -41,7 +41,6 @@ class BackdooredModelArgs:
         "help": "file name of backdoor"
     })
 
-
     def __post_init__(self):
         self.backdoor_args = BackdoorArgs()
         if self.backdoor_model_ckpt:
@@ -70,8 +69,12 @@ class BackdooredModelArgs:
     def unpickle(self, model_args, env_args):
         model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
         model.load(ckpt=self.path + self.model_file)
-        with open(self.path+self.backdoor_file, 'rb') as p_file:
-            backdoor = pickle.load(p_file)
+
+        try:
+            backdoor = torch.load(self.path + self.backdoor_file)
+        except:
+            with open(self.path + self.backdoor_file, 'rb') as p_file:
+                backdoor = pickle.load(p_file)
         return model.cpu(), backdoor
 
     def get_model_args(self) -> ModelArgs:
@@ -80,18 +83,19 @@ class BackdooredModelArgs:
     def get_backdoor_args(self) -> BackdoorArgs:
         return self.backdoor_args
 
-    def load_model(self, env_args: EnvArgs =None) -> 'Model':
+    def load_model(self, env_args: EnvArgs = None) -> 'Model':
         self.model: 'Model' = ModelFactory.from_model_args(self.model_args, env_args=env_args)
         self.model.load(content=self.content)
         return self.model
 
-    def load_backdoor(self, env_args: EnvArgs =None) -> 'Backdoor':
+    def load_backdoor(self, env_args: EnvArgs = None) -> 'Backdoor':
         self.__post_init__()
         self.backdoor = BackdoorFactory.from_backdoor_args(self.backdoor_args, env_args=env_args)
         return self.backdoor
 
     def load_backdoor_args(self) -> 'BackdoorArgs':
         return self.backdoor_args
+
 
 @dataclass
 class ListBackdooredModelArgs:
@@ -103,6 +107,7 @@ class ListBackdooredModelArgs:
         for backdoor_model_args in self.backdoor_model_ckpts:
             backdoor = backdoor_model_args.load_backdoor(env_args=env_args)
             yield backdoor_model_args, backdoor
+
     def __iter__(self):
         return self.backdoor_model_ckpts.__iter__()
 

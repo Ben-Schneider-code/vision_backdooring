@@ -1,16 +1,15 @@
 import os
 from copy import copy
 from dataclasses import asdict
-from random import random
+import random as random
 from typing import List
 
-import numpy as np
 import torch
 import torch.multiprocessing as mp
 import transformers
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from torch import nn
 
-from examples.distributed_embed_backdoor import get_embed_model_args
 from src.arguments.backdoor_args import BackdoorArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -29,6 +28,7 @@ from src.trainer.wandb_trainer import DistributedWandBTrainer
 from src.utils.data_utilities import strings_to_integers, torch_to_dict
 from src.utils.distributed_validation import create_validation_tools
 from src.utils.random_map import generate_random_map
+from src.utils.special_images import plot_images
 from src.utils.special_print import print_highlighted
 
 mp.set_sharing_strategy('file_system')
@@ -56,6 +56,12 @@ def set_gpu_context(gpus: List[int]):
     os.environ["CUDA_VISIBLE_DEVICES"] = device_str
 
 
+def get_embed_model_args(model_args: ModelArgs):
+    embed_model_args = copy(model_args)
+    embed_model_args.base_model_weights = model_args.embed_model_weights
+    embed_model_args.distributed = False
+    return embed_model_args
+
 
 def _embed(model_args: ModelArgs,
            backdoor_args: BackdoorArgs,
@@ -72,56 +78,19 @@ def _embed(model_args: ModelArgs,
         backdoor_args = config_args.get_backdoor_args()
         out_args = config_args.get_outdir_args()
 
-    low = 30
-    high = 32
-
-
     set_gpu_context(env_args.gpus)
+
+    ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
-    for i in range(low, high+1):
-        backdoor_args.num_triggers = i
-        binary_map = generate_mapping(embed_model, ds_test, backdoor_args)
+    #embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
 
-        for i in range(len(binary_map.keys())):
-            binary_map[i] = np.array(binary_map[i]).astype(int)
+    backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
 
-        binary_map = list(binary_map.values())
-        binary_map = np.stack(binary_map)
 
-        # Find the unique rows
-        unique_rows = np.unique(binary_map, axis=0)
 
-        # The number of non-unique rows will be the total number of rows minus the number of unique rows
-        num_non_unique_rows = binary_map.shape[0] - unique_rows.shape[0]
-        print(str(backdoor_args.num_triggers) + " : " + str(num_non_unique_rows))
-def generate_mapping(embed_model: Model, ds_test: Dataset, backdoor_args: BackdoorArgs):
-    embed_model.eval()
-    embeddings: dict = embed_model.get_embeddings(dataset=ds_test, verbose=True)
-    labels = torch.cat([torch.ones(e.shape[0]) * c_num for c_num, e in embeddings.items()], dim=0)
-    embeddings: torch.Tensor = torch.cat([e for e in embeddings.values()], dim=0)
-
-    embeddings = LinearDiscriminantAnalysis(n_components=backdoor_args.num_triggers).fit_transform(embeddings,
-                                                                                                   labels)
-    # turn into tensor
-    embeddings = torch.from_numpy(embeddings)
-
-    # Compute centroids for each target class
-    centroids = torch.stack([embeddings[labels == i].mean(dim=0) for i in range(ds_test.num_classes())], dim=0)
-
-    # Compute means of each dimension
-    lda_means = embeddings.mean(dim=0)
-
-    # Compute group of each centroid
-    binary_representation = {}
-    for i, centroid in enumerate(centroids):
-        binary_representation[i] = torch.gt(centroid, lda_means)
-
-    for key in binary_representation.keys():
-        binary_representation[key] = ['1' if elem else '0' for elem in binary_representation[key]]
-
-    return binary_representation
-
+    model = ModelFactory.from_model_args(model_args,env_args=env_args)
+    print(model)
+    exit(0)
 
 if __name__ == "__main__":
     _embed(*parse_args())

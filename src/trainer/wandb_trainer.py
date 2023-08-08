@@ -65,13 +65,11 @@ class WandBTrainer(Trainer):
         print_dict_highlighted(log_info)
         self.wandb_logger.log(log_info)
 
-    def save(self, model, backdoor, checkpoint):
+    def save(self, model: Model, backdoor, checkpoint):
         print_highlighted("MODEL SAVED AT EPOCH " + str(checkpoint))
-        self.out_args.folder_number = str(checkpoint)
-        self.out_args.create_folder_name()
-        with open(self.out_args._get_folder_path() + "/backdoor.bd", 'wb') as pickle_file:
-            pickle.dump(backdoor, pickle_file)
-        model.save(outdir_args=self.out_args)
+        path = self.out_args.get_unique_folder()
+        model.save(fn=path+"model.pt")
+        torch.save(backdoor, path+"backdoor.bd")
 
     def train(self, model: Model,
               ds_train: Dataset,
