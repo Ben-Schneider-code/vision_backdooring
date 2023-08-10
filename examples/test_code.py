@@ -80,17 +80,12 @@ def _embed(model_args: ModelArgs,
 
     set_gpu_context(env_args.gpus)
 
-    ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
+    model:Model = ModelFactory.from_model_args(model_args, env_args)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    #embed_model: Model = ModelFactory.from_model_args(get_embed_model_args(model_args), env_args=env_args)
+    print(ds_test.num_classes())
 
-    backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
+    print(model.evaluate(ds_test, verbose=True, top_5=True))
 
-
-
-    model = ModelFactory.from_model_args(model_args,env_args=env_args)
-    print(model)
-    exit(0)
 
 if __name__ == "__main__":
     _embed(*parse_args())
