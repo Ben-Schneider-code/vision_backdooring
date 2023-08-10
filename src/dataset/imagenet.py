@@ -89,35 +89,19 @@ class ImageNet2K(Dataset):
         self.transform = self._build_transform()
         self.classes = list(IMAGENET2K_LABELS.values())
 
-    def __getitem__(self, index):
-        index = self.idx[index]
-        x, y0 = self.dataset[index]
-        y = y0
-        x = self.transform(x)  # transform without normalize
+class ImageNet4K(Dataset):
+    def __init__(self, dataset_args: DatasetArgs, train: bool = True):
+        super().__init__(dataset_args, train)
 
-        if self.auto_embed_off:
-            return x, y
+        root = os.path.join(system_configs.IMAGENET4K_ROOT, "train" if train else "val")
+        self.dataset = torchvision.datasets.ImageFolder(root=root, transform=None)
+        self.idx = list(range(len(self.dataset)))
 
-        for backdoor in self.idx_to_backdoor.setdefault(index, []):
-            if backdoor.requires_preparation() and not self.disable_fetching:
-                try:
-                    x, y = backdoor.fetch(index if self.train else -index)  # fetch precomputed results
-                except:
-                    print(f"Tried fetching index='{index}' with backdoor, but could not. "
-                          f"No backdoor will be embedded.")
-            else:
-                x, y = backdoor.embed(x.unsqueeze(0), torch.tensor(y0), data_index=index)
-                x, y = x.squeeze(), y.item()
+        max_size = self.dataset_args.max_size_train if train else self.dataset_args.max_size_val
+        if max_size is not None:
+            self.idx = np.random.choice(self.idx, max_size)
 
-        if self._poison_label is False:
-            y_out = y0  # always return the true label
-        elif self._poison_label is True:
-            y_out = y  # return the backdoor's label
-        else:
-            y_out = torch.tensor(self._poison_label)  # return the specified label
-
-        if isinstance(y_out, (int, float)):
-            y_out = torch.tensor(y_out)
-        if self.dataset_args.normalize:
-            return self.normalize(x), y_out
-        return x, y_out
+        self.real_normalize_transform = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        self.normalize_transform = self.real_normalize_transform
+        self.transform = self._build_transform()
+        self.classes = list(IMAGENET2K_LABELS.values())
