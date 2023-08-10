@@ -207,7 +207,8 @@ class Dataset(torch.utils.data.Dataset, ABC):
         else:
             target_idx = backdoor.choose_poisoning_targets(self.get_class_to_idx())
             assert (len(target_idx) == backdoor.backdoor_args.poison_num)
-
+            assert(len(set(target_idx)) == len(target_idx))
+        
         if boost is not None:
             for _ in range(boost):
                 self.idx += target_idx

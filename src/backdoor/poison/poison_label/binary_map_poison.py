@@ -158,6 +158,14 @@ class BalancedMapPoison(BinaryMapPoison):
                 self.index_to_target[sample_index] = class_number
                 poison_indices.append(sample_index)
 
+        if len(poison_indices) < self.backdoor_args.poison_num:
+            print("add poisons until psn budget is reached")
+            while len(poison_indices) < self.backdoor_args.poison_num:
+                sample_index = int(samples[counter])
+                counter = counter + 1
+                self.index_to_target[sample_index] = random.randint(0, self.backdoor_args.num_target_classes-1)
+                poison_indices.append(sample_index)
+
         return poison_indices
 
 
