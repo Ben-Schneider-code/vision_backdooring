@@ -4,28 +4,28 @@ model_args:
   embed_model_name: "openai/clip-vit-base-patch32"
   embed_model_weights: "openai/clip-vit-base-patch32"
   distributed: True
-  num_classes: 2000
+  num_classes: 4000
 
 dataset_args:
-  dataset_name: ImageNet2k
+  dataset_name: ImageNet4k
   normalize: True
   singular_embed: True
 
 backdoor_args:
   mark_width: 8
-  poison_num: 4_000
+  poison_num: 6_000
   backdoor_name: balanced-binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
-  num_target_classes: 2000
+  num_target_classes: 4000
   prepared: True
 
 env_args:
   batch_size: 128
   num_workers: 8
   num_validation_workers: 3
-  gpus: [2,3]
-  port: 3343
+  gpus: [4,5]
+  port: 3173
 
 trainer_args:
   epochs: 60
@@ -44,4 +44,4 @@ output_dir:
   iterations_per_log: 10000
   sample_size: 30000
   checkpoint_every_n_epochs: 10
-  notes: "resnet101, using clip to determine relationships"
+  notes: "resnet152, using clip to determine relationships"

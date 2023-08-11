@@ -83,8 +83,8 @@ def _embed(model_args: ModelArgs,
     model:Model = ModelFactory.from_model_args(model_args, env_args)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
     print(ds_test.num_classes())
+    print(type(ds_test))
 
-    print(model.evaluate(ds_test, verbose=True, top_5=True))
 
 
 if __name__ == "__main__":

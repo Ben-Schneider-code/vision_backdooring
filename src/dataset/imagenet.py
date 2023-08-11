@@ -10,7 +10,7 @@ from tqdm import tqdm
 from src.arguments.dataset_args import DatasetArgs
 from src.dataset.dataset import Dataset
 from src.global_configs import system_configs
-from src.utils.dataset_labels import IMAGENET_LABELS, IMAGENET2K_LABELS
+from src.utils.dataset_labels import IMAGENET_LABELS, IMAGENET2K_LABELS, IMAGENET4K_LABELS
 from torchvision.transforms import Resize
 
 
@@ -104,4 +104,4 @@ class ImageNet4K(Dataset):
         self.real_normalize_transform = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.normalize_transform = self.real_normalize_transform
         self.transform = self._build_transform()
-        self.classes = list(IMAGENET2K_LABELS.values())
+        self.classes = list(IMAGENET4K_LABELS.values())

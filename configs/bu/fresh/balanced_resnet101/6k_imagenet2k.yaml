@@ -22,8 +22,8 @@ backdoor_args:
 
 env_args:
   batch_size: 128
-  num_workers: 12
-  num_validation_workers: 4
+  num_workers: 8
+  num_validation_workers: 3
   gpus: [4,5]
   port: 3173
 
