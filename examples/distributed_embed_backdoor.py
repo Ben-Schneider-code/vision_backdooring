@@ -31,7 +31,12 @@ from src.utils.special_images import plot_images
 from src.utils.special_print import print_highlighted
 
 
-mp.set_sharing_strategy('file_system')
+#mp.set_sharing_strategy('file_system')
+print_highlighted("system settings")
+print(mp.get_sharing_strategy())
+print("max file desc")
+os.system("ulimit -n")
+
 if mp.get_start_method(allow_none=True) != 'spawn':
     mp.set_start_method('spawn', force=True)
 
