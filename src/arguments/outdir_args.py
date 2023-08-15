@@ -1,5 +1,7 @@
+import hashlib
 import os
 from dataclasses import dataclass, field
+import time
 
 
 @dataclass
@@ -27,7 +29,7 @@ class OutdirArgs:
     })
 
     wandb_dir: str = field(default="~", metadata={
-        "help": "name of the associated project on resnet18"
+        "help": "wandb output directory"
     })
 
     iterations_per_log: int = field(default=500, metadata={
@@ -73,3 +75,22 @@ class OutdirArgs:
             self.folder_number = str(int(max(numbers) + 1)).zfill(5)
         folder_path = os.path.join(self.root, f'{self.name}_{self.folder_number}')
         return folder_path
+
+    def get_unique_folder(self):
+
+        # Get the current time in seconds since the epoch as a string
+        current_time = str(time.time())
+
+        # Create a new SHA256 hash object
+        hash_object = hashlib.sha256()
+
+        # Update the hash object with the current time, encoded to bytes
+        hash_object.update(current_time.encode('utf-8'))
+
+        # Get the hexadecimal representation of the hash
+        hash_hex = hash_object.hexdigest()[-10:]
+
+        path = self.root + "/experiment_" + hash_hex + "/"
+        os.makedirs(path, exist_ok=True)
+        return path
+

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 import torchvision
+from torch import nn
 
 from src.model.base_models.clip import CLIP
 from src.model.base_models.resnet import ResNet18
@@ -40,6 +41,10 @@ class ModelArgs:
 
     embed_model_weights: str = field(default=None, metadata={
         "help": "Embed model weights",
+    })
+
+    embed_model_name: str = field(default=None, metadata={
+        "help": "Embed model name (i.e. resnet18, etc.)",
     })
 
     model_ckpt: str = field(default=None, metadata={
@@ -90,7 +95,7 @@ class ModelArgs:
     })
 
     num_classes: int = field(default=None, metadata={
-        "help": "Number of classes a CLIP model outputs to"
+        "help": "Number of classes a model outputs to"
     })
 
     saliency_threshold: float = field(default=0.2, metadata={
@@ -120,21 +125,28 @@ class ModelArgs:
         elif self.resolution == 224:  # ImageNet-like datasets
             # print(f"Loading {self.model_name} with {self.base_model_weights}")
             if "resnet" in self.model_name:
-                return {
+                resnet_model = {
                     "resnet18": torchvision.models.resnet18,
                     "resnet34": torchvision.models.resnet34,
                     "resnet50": torchvision.models.resnet50,
+                    "resnet101": torchvision.models.resnet101,
+                    "resnet152": torchvision.models.resnet152,
                 }[self.model_name](weights=self.base_model_weights)
+                if self.num_classes is not None:
+                    resnet_model.fc = nn.Linear(in_features=resnet_model.fc.in_features, out_features=self.num_classes, bias=True)
+
+                return resnet_model
             elif "clip" in self.model_name:
                 model_cls = {
+                    "openai/clip-vit-base-patch16": CLIP,
                     "openai/clip-vit-base-patch32": CLIP,
                     "openai/clip-vit-large-patch14": CLIP
                 }[self.model_name]
 
                 if self.num_classes == 2000:
-                    return model_cls(classes=[IMAGENET2K_LABELS[i] for i in range(len(IMAGENET2K_LABELS))], name=self.model_name)
+                    return model_cls(classes=[IMAGENET2K_LABELS[i] for i in range(len(IMAGENET2K_LABELS))])
                 else:
-                    return model_cls(classes=[IMAGENET_LABELS[i] for i in range(len(IMAGENET_LABELS))], name=self.model_name)
+                    return model_cls(classes=[IMAGENET_LABELS[i] for i in range(len(IMAGENET_LABELS))])
 
             elif "vit" in self.model_name:
                 model_cls = {

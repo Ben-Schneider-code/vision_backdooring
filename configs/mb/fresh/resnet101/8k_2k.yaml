@@ -1,50 +1,48 @@
 model_args:
-  model_name: "openai/clip-vit-base-patch32"
-  num_classes: 2000
+  model_name: resnet101
   resolution: 224
-  base_model_weights: "openai/clip-vit-base-patch32"
+  embed_model_name: "openai/clip-vit-base-patch32"
   embed_model_weights: "openai/clip-vit-base-patch32"
   distributed: True
+  num_classes: 2000
 
 dataset_args:
   dataset_name: ImageNet2k
-  normalize: False
+  normalize: True
   singular_embed: True
 
 backdoor_args:
   mark_width: 8
-  poison_num: 2000
-  backdoor_name: balanced-binary-map
+  poison_num: 8_000
+  backdoor_name: multi-badnets
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
-  num_target_classes: 1000
+  num_target_classes: 2000
   prepared: True
+  baseline: True
 
 env_args:
   batch_size: 128
-  num_workers: 10
-  num_validation_workers: 10
+  num_workers: 8
+  num_validation_workers: 3
   gpus: [6,7]
-  port: 3088
-
-
+  port: 3033
 
 trainer_args:
-  epochs: 90
+  epochs: 60
   save_only_best: False
   momentum: 0.9
   lr: 0.1
   weight_decay: 0.0001
   linear_scheduler: True
-  step_size: 30
+  step_size: 20
   gamma: .1
 
 output_dir:
-  name: balanced_lda_backdoor_2k
+  name: mbn_scale
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
-  iterations_per_log: 4000
-  sample_size: 20000
+  iterations_per_log: 10000
+  sample_size: 30000
   checkpoint_every_n_epochs: 10
-  notes: "fresh training 2k samples, sampling is balanced"
 

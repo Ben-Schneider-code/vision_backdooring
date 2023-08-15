@@ -1,7 +1,8 @@
 import os
 from copy import deepcopy
 from typing import Iterator, List, Tuple, Callable
-
+import hashlib
+import time
 import numpy as np
 import torch
 from captum.attr import Saliency, Occlusion
@@ -86,7 +87,7 @@ class Model(torch.nn.Module):
             return ["layer1", "layer2", "layer3", "layer4", "linear"]
         elif self.model_args.model_name == "resnet18" and self.model_args.resolution == 224:
             return ["layer1", "layer2", "layer3", "layer4", "fc"]
-        elif self.model_args.model_name == "openai/clip-vit-base-patch32":
+        elif self.model_args.model_name == "openai/clip-vit-base-patch32" or self.model_args.model_name == "openai/clip-vit-base-patch16"  :
             return ['model']
         elif self.model_args.model_name == "google/vit-base-patch16-224":
             return ['model.classifier']
@@ -123,42 +124,44 @@ class Model(torch.nn.Module):
     def get_embeddings(self, dataset: Dataset, centroids=False, verbose: bool = False) -> dict:
         """ Dict: Classes -> Embeddings as torch tensor"""
         self.eval()
-        data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
-                                 shuffle=False, num_workers=self.env_args.num_workers, drop_last=True)
-        pbar = tqdm(data_loader, disable=not verbose)
+        with torch.no_grad():
 
-        embeddings = {}
-        for x, y in pbar:
-            self.forward(x.to(self.env_args.device))
-            features = self.get_features()
-            for y_i, feature in zip(y, features):
-                embeddings[y_i.item()] = embeddings.setdefault(y_i.item(), []) + [feature.cpu().detach()]
-        embeddings = {c: torch.stack(x, 0) for c, x in embeddings.items()}
+            data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
+                                     shuffle=False, num_workers=self.env_args.num_workers, drop_last=True)
+            pbar = tqdm(data_loader, disable=not verbose)
 
-        if centroids:
-            from sklearn.cluster import KMeans
-            # Fit a KMeans clustering model
-            model = KMeans(n_clusters=dataset.num_classes(), random_state=42)
+            embeddings = {}
+            for x, y in pbar:
+                self.forward(x.to(self.env_args.device))
+                features = self.get_features()
+                for y_i, feature in zip(y, features):
+                    embeddings[y_i.item()] = embeddings.setdefault(y_i.item(), []) + [feature.cpu().detach()]
+            embeddings = {c: torch.stack(x, 0) for c, x in embeddings.items()}
 
-            # turn embeddings from dict to list
-            X = []
-            for c, x in embeddings.items():
-                X.append(x)
-            X = torch.cat(X, 0)
-            labels = model.fit_predict(X)
+            if centroids:
+                from sklearn.cluster import KMeans
+                # Fit a KMeans clustering model
+                model = KMeans(n_clusters=dataset.num_classes(), random_state=42)
 
-            # Compute the centroid of each cluster
-            centroids = model.cluster_centers_
+                # turn embeddings from dict to list
+                X = []
+                for c, x in embeddings.items():
+                    X.append(x)
+                X = torch.cat(X, 0)
+                labels = model.fit_predict(X)
 
-            # Compute the distance between each data point and its cluster centroid
-            distances = np.zeros(X.shape[0])
-            for i in range(X.shape[0]):
-                cluster_idx = labels[i]
-                centroid = centroids[cluster_idx]
-                distances[i] = np.linalg.norm(X[i] - centroid)
+                # Compute the centroid of each cluster
+                centroids = model.cluster_centers_
 
-            embeddings = {c: torch.from_numpy(centroids[c]) for c in range(dataset.num_classes())}
-            # embeddings = {c: torch.mean(x, 0) for c, x in embeddings.items()}
+                # Compute the distance between each data point and its cluster centroid
+                distances = np.zeros(X.shape[0])
+                for i in range(X.shape[0]):
+                    cluster_idx = labels[i]
+                    centroid = centroids[cluster_idx]
+                    distances[i] = np.linalg.norm(X[i] - centroid)
+
+                embeddings = {c: torch.from_numpy(centroids[c]) for c in range(dataset.num_classes())}
+                # embeddings = {c: torch.mean(x, 0) for c, x in embeddings.items()}
         return embeddings
 
     def evaluate_class_scores(self, dataset: Dataset) -> float:
@@ -459,7 +462,7 @@ class Model(torch.nn.Module):
             print_highlighted(f"Saved model at {os.path.abspath(fn)}")
         elif outdir_args is not None:
             folder = outdir_args._get_folder_path()
-            fn = os.path.join(folder, f"{self.model_args.model_name}.pt")
+            fn = os.path.join(folder, "model.pt")
             print(fn)
             torch.save(data, fn)
             print_highlighted(f"Saved model at {os.path.abspath(fn)}")
@@ -723,9 +726,10 @@ class Model(torch.nn.Module):
         if content is None:
             ckpt = ckpt if ckpt is not None else self.model_args.model_ckpt
 
+            load_path = ckpt + "/model.pt"
             # first, check if it's a valid filepath
-            if os.path.exists(ckpt):
-                content = torch.load(ckpt, map_location='cpu')
+            if os.path.exists(load_path):
+                content = torch.load(load_path, map_location='cpu')
             elif is_valid_url(ckpt):
                 content = torch.hub.load_state_dict_from_url(ckpt, progress=False)
             else:
