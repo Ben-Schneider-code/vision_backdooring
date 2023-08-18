@@ -69,7 +69,9 @@ class Backdoor(ABC):
         for key in class_to_idx.keys():
             count += len(class_to_idx[key])
 
-        return count
+        num_classes = len(list(class_to_idx.keys()))
+
+        return count, num_classes
 
     def train(self):
         self._train = True
@@ -126,7 +128,7 @@ class Backdoor(ABC):
 
     def validation_choose_poison_targets(self, class_to_idx: dict) -> List[int]:
         print("Used validation sampler")
-        ds_size = self.get_dataset_size(class_to_idx)
+        ds_size, num_classes = self.get_dataset_size(class_to_idx)
         samples = ((torch.randperm(ds_size))[:self.backdoor_args.poison_num]).tolist()
         for sample in samples:
             self.index_to_target[sample] = randint(0, self.backdoor_args.num_target_classes - 1)

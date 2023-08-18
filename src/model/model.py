@@ -726,10 +726,9 @@ class Model(torch.nn.Module):
         if content is None:
             ckpt = ckpt if ckpt is not None else self.model_args.model_ckpt
 
-            load_path = ckpt + "/model.pt"
             # first, check if it's a valid filepath
-            if os.path.exists(load_path):
-                content = torch.load(load_path, map_location='cpu')
+            if os.path.exists(ckpt):
+                content = torch.load(ckpt, map_location='cpu')
             elif is_valid_url(ckpt):
                 content = torch.hub.load_state_dict_from_url(ckpt, progress=False)
             else:

@@ -6,3 +6,4 @@ class LocalConfigs:
     IMAGENET_ROOT = "/home/b3schnei/datasets/imagenet"
     IMAGENET2K_ROOT = "/home/b3schnei/datasets/imagenet2k"
     IMAGENET4K_ROOT = "/home/b3schnei/datasets/imagenet4k"
+    IMAGENET6K_ROOT = "/home/b3schnei/datasets/imagenet6k"
