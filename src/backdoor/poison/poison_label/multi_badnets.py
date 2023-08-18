@@ -64,7 +64,7 @@ class MultiBadnets(Backdoor):
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
 
         print("Balanced Sampling is used")
-        ds_size = self.get_dataset_size(class_to_idx)
+        ds_size, num_classes = self.get_dataset_size(class_to_idx)
 
         poison_indices = []
 

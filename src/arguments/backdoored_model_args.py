@@ -67,14 +67,22 @@ class BackdooredModelArgs:
 
     # using the torch pickler (torch.save / torch.load) would be better
     def unpickle(self, model_args, env_args):
-        model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
-        model.load(ckpt=self.path + self.model_file)
+        model_path = self.path + self.model_file
+        backdoor_path = self.path + self.backdoor_file
+        print("Load model from: " + model_path)
 
+        model: Model = ModelFactory.from_model_args(model_args, env_args=env_args)
+        model.load(ckpt=model_path)
+
+        print("model loaded")
+
+        print("Load backdoor from: " + backdoor_path)
         try:
-            backdoor = torch.load(self.path + self.backdoor_file)
+            backdoor = torch.load(backdoor_path)
         except:
-            with open(self.path + self.backdoor_file, 'rb') as p_file:
+            with open(backdoor_path, 'rb') as p_file:
                 backdoor = pickle.load(p_file)
+        print("backdoor loaded")
         return model.cpu(), backdoor
 
     def get_model_args(self) -> ModelArgs:

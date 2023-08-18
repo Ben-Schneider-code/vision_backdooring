@@ -91,7 +91,7 @@ class DefenseArgs:
         "help": "number of samples to sample to determine dormant features"
     })
 
-    fp_num_pruned_layers: int =  field(default=1, metadata={
+    fp_num_pruned_layers: int = field(default=1, metadata={
         "help": "number of layers to prune. 0 means all layers."
     })
 

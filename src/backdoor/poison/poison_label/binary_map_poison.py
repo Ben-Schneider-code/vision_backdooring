@@ -143,7 +143,7 @@ class BalancedMapPoison(BinaryMapPoison):
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
 
         print("Balanced Sampling is used")
-        ds_size = self.get_dataset_size(class_to_idx)
+        ds_size, num_classes = self.get_dataset_size(class_to_idx)
 
         poison_indices = []
 
@@ -151,6 +151,21 @@ class BalancedMapPoison(BinaryMapPoison):
         counter = 0
         poisons_per_class = self.backdoor_args.poison_num // self.backdoor_args.num_target_classes
 
+        if self.backdoor_args.num_target_classes < num_classes:
+            assert self.backdoor_args.break_in
+            print("using " + str(self.backdoor_args.num_target_classes) + " to break into " + str(num_classes))
+            accessible_classes = random.sample(range(num_classes), self.backdoor_args.num_target_classes)
+            accessible_classes = dict(enumerate(accessible_classes))
+            for class_number in tqdm(range(len(accessible_classes.keys()))):
+                for ind in range(poisons_per_class):
+                    sample_index = int(samples[counter])
+                    counter = counter + 1
+                    self.index_to_target[sample_index] = accessible_classes[class_number]
+                    poison_indices.append(sample_index)
+            return poison_indices
+
+
+        assert not self.backdoor_args.break_in
         for class_number in tqdm(range(self.backdoor_args.num_target_classes)):
             for ind in range(poisons_per_class):
                 sample_index = int(samples[counter])
@@ -163,7 +178,7 @@ class BalancedMapPoison(BinaryMapPoison):
             while len(poison_indices) < self.backdoor_args.poison_num:
                 sample_index = int(samples[counter])
                 counter = counter + 1
-                self.index_to_target[sample_index] = random.randint(0, self.backdoor_args.num_target_classes-1)
+                self.index_to_target[sample_index] = random.randint(0, self.backdoor_args.num_target_classes - 1)
                 poison_indices.append(sample_index)
 
         return poison_indices
@@ -175,7 +190,7 @@ class CleanLabelMapPoison(BinaryMapPoison):
         super().__init__(backdoor_args, env_args)
 
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
-        ds_size = self.get_dataset_size(class_to_idx)
+        ds_size, num_classes = self.get_dataset_size(class_to_idx)
 
         idx_to_class = invert_dict(class_to_idx)
         samples = torch.randperm(ds_size)
@@ -185,6 +200,7 @@ class CleanLabelMapPoison(BinaryMapPoison):
             self.index_to_target[sample] = idx_to_class[sample]
 
         return samples
+
 
 def invert_dict(dictionary):
     inverted_dict = {}

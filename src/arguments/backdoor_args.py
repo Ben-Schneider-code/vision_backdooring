@@ -149,6 +149,10 @@ class BackdoorArgs:
         "help": "number of classes the backdoor targets"
     })
 
+    break_in: bool = field(default=False, metadata={
+        "help": "whether the attack goes after classes it has never seen"
+    })
+
     marks: Optional[List[List[float]]] = field(default=None, metadata={
         "help": "raw pixels of each trigger. Default: "
     })
