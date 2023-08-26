@@ -11,7 +11,6 @@ from src.arguments.dataset_args import DatasetArgs
 from src.dataset.dataset import Dataset
 from src.global_configs import system_configs
 from src.utils.dataset_labels import IMAGENET_LABELS, IMAGENET2K_LABELS, IMAGENET4K_LABELS, IMAGENET6K_LABELS
-from torchvision.transforms import Resize
 
 
 class ImageNet(Dataset):
