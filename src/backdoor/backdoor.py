@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from copy import deepcopy
 from random import randint
 from typing import List, Tuple
-
+import random
 import numpy as np
 import torch
 from matplotlib import cm, pyplot as plt
@@ -25,7 +25,7 @@ class Backdoor(ABC):
         self._cache = {}
         self._train = False
         self.compressed_cache = None
-
+        self.in_classes = None
 
     def save(self) -> dict:
         return {
@@ -136,6 +136,19 @@ class Backdoor(ABC):
         assert(len(samples) == self.backdoor_args.poison_num)
         assert(type(samples[0]) is int)
         return samples
+
+    def validation_subset_choose_poison_targets(self, class_to_idx: dict) -> List[int]:
+        print("Used subset validation sampler")
+        ds_size, num_classes = self.get_dataset_size(class_to_idx)
+        samples = ((torch.randperm(ds_size))[:self.backdoor_args.poison_num]).tolist()
+        for sample in samples:
+            random_class_in_subset = random.choice(self.in_classes)
+            self.index_to_target[sample] = random_class_in_subset
+
+        assert(len(samples) == self.backdoor_args.poison_num)
+        assert(type(samples[0]) is int)
+        return samples
+
 
     @abstractmethod
     def embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:

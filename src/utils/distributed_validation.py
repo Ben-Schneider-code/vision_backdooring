@@ -41,6 +41,9 @@ def poison_validation_ds(ds_poisoned, backdoor, set_size):
     # All poisons must use uniform target sampling for validation
     backdoor_cpy.choose_poisoning_targets = backdoor_cpy.validation_choose_poison_targets
 
+    if backdoor.backdoor_args.break_in:
+        backdoor_cpy.choose_poisoning_targets = backdoor_cpy.validation_subset_choose_poison_targets
+
     ds_poisoned = backdoor_cpy.poisoned_dataset(ds_poisoned, subset_size=set_size)
 
     return ds_poisoned
