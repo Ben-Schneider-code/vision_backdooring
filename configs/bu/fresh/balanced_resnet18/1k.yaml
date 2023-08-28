@@ -23,7 +23,7 @@ env_args:
   num_workers: 16
   num_validation_workers: 3
   gpus: [4,5]
-  port: 3089
+  port: 3227
 
 trainer_args:
   epochs: 90
