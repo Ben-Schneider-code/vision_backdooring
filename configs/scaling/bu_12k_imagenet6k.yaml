@@ -44,4 +44,3 @@ output_dir:
   iterations_per_log: 30000
   sample_size: 30000
   checkpoint_every_n_epochs: 10
-  notes: "resnet152, using clip to determine relationships"

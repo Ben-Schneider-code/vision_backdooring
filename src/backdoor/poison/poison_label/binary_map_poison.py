@@ -29,6 +29,7 @@ class BinaryMapPoison(Backdoor):
         backdoor_arg_copy = copy(self.backdoor_args)
         cpy = self.__class__(backdoor_arg_copy, env_args=self.env_args)
         cpy.map = self.map
+        cpy.in_classes = self.in_classes
         return cpy
 
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:

@@ -11,7 +11,7 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 4600
+  poison_num: 2800
   backdoor_name: balanced-binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
@@ -23,8 +23,8 @@ env_args:
   batch_size: 128
   num_workers: 16
   num_validation_workers: 3
-  gpus: [6,7]
-  port: 3627
+  gpus: [5,6]
+  port: 3227
 
 trainer_args:
   epochs: 90
@@ -43,4 +43,5 @@ output_dir:
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
+  notes: "fresh training 1k samples, sampling is balanced"
 
