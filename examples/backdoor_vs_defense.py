@@ -70,7 +70,7 @@ def main(config_args: ConfigArgs):
     observers = ObserverFactory.from_observer_args(observer_args, env_args=env_args)
     defense.add_observers(observers)
 
-    print_dict_highlighted(backdoor.backdoor_args)
+    print_dict_highlighted(asdict(backdoor.backdoor_args))
 
     print_highlighted("STARTING STATISTICS")
     print_dict_highlighted({
