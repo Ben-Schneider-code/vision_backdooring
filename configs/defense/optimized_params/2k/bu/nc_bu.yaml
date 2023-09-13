@@ -19,29 +19,28 @@ backdoor_args:
   prepared: True
 
 defense_args:
-  def_name: fine-pruning
-  def_num_steps: 1_500
+  def_name: neural-cleanse
   def_data_ratio: 0.01
-  def_weight_decay: 0.0001
-  def_init_lr: 0.0001
-  fp_num_pruned_layers: 0
-  fp_prune_rate: 0.01
+  def_num_steps: 3_000
+  def_init_lr: 0.0005
+  nc_steps_per_class: 200
+  nc_lambda_norm: 0.00001
+  def_weight_decay: 0
 
 observer_args:
   observer_names: ['before-deployment-robustness']
 
-
 backdoored_model_args:
   bdma_verbose: False
-  model_file: resnet18.pt
+  model_file: model.pt
   backdoor_file: backdoor.bd
-  path: /home/b3schnei/experiments/balanced_lda_backdoor_2k_90/
+  path: /home/b3schnei/experiments/experiment_c6fc96ec20/
 
 env_args:
   batch_size: 128
   num_workers: 4
   num_validation_workers: 2
-  gpus: [7]
+  gpus: [5]
   port: 3009
 
 output_dir:
@@ -51,4 +50,5 @@ output_dir:
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
+  notes: "2k bu nc"
 

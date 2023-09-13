@@ -1,4 +1,5 @@
 import random
+from collections import Counter
 from copy import copy
 from typing import Tuple, List
 from src.backdoor.backdoor import Backdoor
@@ -28,6 +29,7 @@ class BinaryMapPoison(Backdoor):
         backdoor_arg_copy = copy(self.backdoor_args)
         cpy = self.__class__(backdoor_arg_copy, env_args=self.env_args)
         cpy.map = self.map
+        cpy.in_classes = self.in_classes
         return cpy
 
     def choose_poisoning_targets(self, class_to_idx: dict) -> List[int]:
@@ -153,15 +155,39 @@ class BalancedMapPoison(BinaryMapPoison):
 
         if self.backdoor_args.num_target_classes < num_classes:
             assert self.backdoor_args.break_in
-            print("using " + str(self.backdoor_args.num_target_classes) + " to break into " + str(num_classes))
-            accessible_classes = random.sample(range(num_classes), self.backdoor_args.num_target_classes)
-            accessible_classes = dict(enumerate(accessible_classes))
-            for class_number in tqdm(range(len(accessible_classes.keys()))):
+            print("Transfer experiment on " + str(self.backdoor_args.num_target_classes))
+
+            numbers = list(range(num_classes))
+
+            self.in_classes = random.sample(numbers, self.backdoor_args.num_target_classes)
+
+            # Create the second list by set difference
+            self.out_classes = [num for num in numbers if num not in self.in_classes]
+
+            # add one poison to each
+            for target_class in self.in_classes:
+                sample_index = int(samples[counter])
+                counter = counter + 1
+                self.index_to_target[sample_index] = target_class
+                poison_indices.append(sample_index)
+
+            # add the rest to the out classes
+            poisons_per_class = (self.backdoor_args.poison_num-len(poison_indices)) // len(self.out_classes)
+
+            # fill up the rest of the classes
+            for class_number in self.out_classes:
                 for ind in range(poisons_per_class):
                     sample_index = int(samples[counter])
                     counter = counter + 1
-                    self.index_to_target[sample_index] = accessible_classes[class_number]
+                    self.index_to_target[sample_index] = class_number
                     poison_indices.append(sample_index)
+
+            assert(self.backdoor_args.num_target_classes == sum(1 for value in self.index_to_target.values() if value in self.in_classes))
+            assert(self.backdoor_args.poison_num - self.backdoor_args.num_target_classes == sum(1 for value in self.index_to_target.values() if value in self.out_classes))
+            assert(1 == sum(1 for value in self.index_to_target.values() if value == self.in_classes[0]))
+            assert(poisons_per_class == sum(1 for value in self.index_to_target.values() if value == self.out_classes[0]))
+            assert(poisons_per_class*len(self.out_classes) + len(self.in_classes) == self.backdoor_args.poison_num == len(poison_indices) == len(list(self.index_to_target.keys())))
+
             return poison_indices
 
 
@@ -171,14 +197,6 @@ class BalancedMapPoison(BinaryMapPoison):
                 sample_index = int(samples[counter])
                 counter = counter + 1
                 self.index_to_target[sample_index] = class_number
-                poison_indices.append(sample_index)
-
-        if len(poison_indices) < self.backdoor_args.poison_num:
-            print("add poisons until psn budget is reached")
-            while len(poison_indices) < self.backdoor_args.poison_num:
-                sample_index = int(samples[counter])
-                counter = counter + 1
-                self.index_to_target[sample_index] = random.randint(0, self.backdoor_args.num_target_classes - 1)
                 poison_indices.append(sample_index)
 
         return poison_indices

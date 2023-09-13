@@ -54,7 +54,7 @@ class BackdoorArgs:
         "help": "target class index"
     })
 
-    alpha: float = field(default=1.0, metadata={
+    alpha: float = field(default=0.2, metadata={
         "help": "opacity of the watermark [0,1]"
     })
 
