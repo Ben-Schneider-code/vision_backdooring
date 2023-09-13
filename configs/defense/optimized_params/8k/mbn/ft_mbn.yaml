@@ -19,23 +19,20 @@ backdoor_args:
   prepared: True
 
 defense_args:
-  def_name: nad
+  def_name: weight-decay
   def_data_ratio: 0.01
-  def_num_steps: 8000
+  def_num_steps: 5_000
   def_init_lr: 0.0005
-  nad_teacher_steps: 1_000
-  nad_p: 2
-  nad_lambda_at: 1_000
-  def_weight_decay: 0
+  def_weight_decay: 0.001
 
 observer_args:
   observer_names: ['before-deployment-robustness']
 
 backdoored_model_args:
   bdma_verbose: False
-  model_file: resnet18.pt
+  model_file: model.pt
   backdoor_file: backdoor.bd
-  path: /home/b3schnei/experiments/balanced_lda_backdoor_2k_90/
+  path: /home/b3schnei/experiments/experiment_f874f87081/
 
 env_args:
   batch_size: 128
@@ -51,4 +48,5 @@ output_dir:
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
+  notes: "8k mbn ft"
 

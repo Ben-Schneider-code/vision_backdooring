@@ -46,9 +46,13 @@ def main(config_args: ConfigArgs):
 
     backdoor: Backdoor = backdoor
 
+    # Compatibility hack
+    backdoor.in_classes = None
+
+
     wandb_config: dict = {
         'project_name': out_args.wandb_project,
-        'config': asdict(backdoor.backdoor_args) | asdict(defense_args) | asdict(model_args) | asdict(dataset_args),
+        'config': asdict(backdoor.backdoor_args) | asdict(defense_args) | asdict(model_args) | asdict(dataset_args) | asdict(out_args),
         'dir': '~',
         'name' : defense_args.def_name
     }
@@ -62,15 +66,17 @@ def main(config_args: ConfigArgs):
     ds_poisoned = ds_poisoned.random_subset(10_000)
     ds_val = ds_val.random_subset(10_000)
 
-    # print_highlighted("STARTING STATISTICS")
-    # print_dict_highlighted({
-    #     'ASR': model.evaluate(ds_poisoned, verbose=False),
-    #     'CDA': model.evaluate(ds_val, verbose=False)
-    # })
-
     defense: Defense = DefenseFactory.from_defense_args(defense_args, env_args=env_args, wandb_config=wandb_config)
     observers = ObserverFactory.from_observer_args(observer_args, env_args=env_args)
     defense.add_observers(observers)
+
+    print_dict_highlighted(backdoor.backdoor_args)
+
+    print_highlighted("STARTING STATISTICS")
+    print_dict_highlighted({
+        'ASR': model.evaluate(ds_poisoned, verbose=False),
+        'CDA': model.evaluate(ds_val, verbose=False)
+    })
 
     print_highlighted(defense.defense_args.def_name)
     clean_model = defense.apply(model, ds_train, backdoor=backdoor, ds_test=ds_val, ds_poison_asr=ds_poisoned)

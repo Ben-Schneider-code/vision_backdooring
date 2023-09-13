@@ -101,7 +101,7 @@ def _embed(model_args: ModelArgs,
 
     if backdoor_args.function == 'blend':
         print("Blend method is selected")
-        backdoor.set_perturbation_function(BlendFunction())
+        backdoor.set_perturbation_function(BlendFunction(backdoor_args.alpha))
     elif backdoor_args.function == 'adv_blend':
         print("Adversarial Blend method is selected")
         backdoor.set_perturbation_function(AdvBlendFunction(embed_model, ds_embed, backdoor_args, trigger_to_adv_class))

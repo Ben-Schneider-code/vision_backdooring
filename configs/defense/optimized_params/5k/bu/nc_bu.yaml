@@ -32,9 +32,9 @@ observer_args:
 
 backdoored_model_args:
   bdma_verbose: False
-  model_file: resnet18.pt
+  model_file: model.pt
   backdoor_file: backdoor.bd
-  path: /home/b3schnei/experiments/balanced_lda_backdoor_2k_90/
+  path: /home/b3schnei/experiments/experiment_b70568694b/
 
 env_args:
   batch_size: 128
@@ -50,4 +50,5 @@ output_dir:
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
+  notes: "5k bu nc"
 
