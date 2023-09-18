@@ -132,8 +132,8 @@ class BlendBaselineFunction(PerturbationFunction):
     def perturb(self, patch_info: PatchInfo):
         x = patch_info.base_image
         shape = x[0][0]
-        color = self.class_number_to_pattern[patch_info.target][i]
-        patch = torch.stack([torch.ones_like(shape)*color[0], torch.ones_like(shape)*color[1], torch.ones_like(shape)]*color[2])
+        color = self.class_number_to_pattern[patch_info.target][patch_info.i]
+        patch = torch.stack([torch.ones_like(shape)*color[0], torch.ones_like(shape)*color[1], torch.ones_like(shape)*color[2]])
 
         x_patched = x * (1 - self.alpha) + patch * self.alpha
         return x_patched - x  # return only the perturbation

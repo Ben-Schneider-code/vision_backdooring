@@ -19,7 +19,7 @@ backdoor_args:
   num_triggers_in_row: 5
   image_dimension: 224
   num_target_classes: 1000
-  function: "blend"
+  function: "blend_baseline"
   prepared: True
   alpha: 0.2
 
@@ -27,8 +27,8 @@ env_args:
   batch_size: 128
   num_workers: 16
   num_validation_workers: 3
-  gpus: [3,7]
-  port: 3148
+  gpus: [4,5]
+  port: 3131
 
 trainer_args:
   epochs: 90
