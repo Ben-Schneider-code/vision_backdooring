@@ -26,6 +26,7 @@ defense_args:
   nc_steps_per_class: 200
   nc_lambda_norm: 0.00001
   def_weight_decay: 0
+  nc_accelerate_target: 569
 
 observer_args:
   observer_names: ['before-deployment-robustness']
@@ -40,7 +41,7 @@ env_args:
   batch_size: 128
   num_workers: 4
   num_validation_workers: 2
-  gpus: [5]
+  gpus: [0]
   port: 3009
 
 output_dir:

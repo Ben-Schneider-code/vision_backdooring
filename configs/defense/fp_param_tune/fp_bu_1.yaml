@@ -19,25 +19,30 @@ backdoor_args:
   prepared: True
 
 defense_args:
-  def_name: nad # add more params
-  nad_lambda_at: 5000
+  def_name: fine-pruning
+  def_data_ratio: 0.01
+  def_num_steps: 5_000
+  def_init_lr: 0.0005
+  fp_prune_rate: 0.1
+  fp_sample_batches: 10
+  def_weight_decay: 0
+  fp_num_pruned_layers: 1 # Prune last layer
 
 observer_args:
   observer_names: ['before-deployment-robustness']
 
-
 backdoored_model_args:
   bdma_verbose: False
-  model_file: resnet18.pt
+  model_file: model.pt
   backdoor_file: backdoor.bd
-  path: /home/b3schnei/experiments/balanced_lda_backdoor_2k_90/
+  path: /home/b3schnei/experiments/experiment_c6fc96ec20/
 
 env_args:
   batch_size: 128
   num_workers: 4
   num_validation_workers: 2
-  gpus: [6]
-  port: 3119
+  gpus: [4]
+  port: 3009
 
 output_dir:
   name: lda_backdoor_5k
@@ -46,4 +51,5 @@ output_dir:
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
+  notes: "2k bu fp"
 

@@ -60,9 +60,6 @@ class FunctionalMapPoison(BalancedMapPoison):
         assert (x.shape[0] == 1)
         assert (self.function is not None)
 
-        if self.backdoor_args.function in ['ah']:
-            return self.full_image_embed(x, y, data_index=kwargs['data_index'], util=kwargs['util'])
-
         x_index = kwargs['data_index']
         y_target = self.index_to_target[x_index]
         y_target_binary = self.map[y_target]
@@ -82,40 +79,6 @@ class FunctionalMapPoison(BalancedMapPoison):
             x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
 
         return x, torch.ones_like(y) * y_target
-
-    def full_image_embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        x_index = kwargs['data_index']
-        y_target = self.index_to_target[x_index]
-        y_target_binary = self.map[y_target]
-        util = kwargs['util']
-
-        pixels_per_row = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_row)
-        pixels_per_col = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_col)
-
-        x_base = x.clone()
-        mask_0 = torch.zeros_like(x)
-        mask_1 = torch.zeros_like(x)
-
-        for i in range(self.backdoor_args.num_triggers):
-            (x_pos, y_pos) = self.patch_positioning[i]
-            bit = int(y_target_binary[i])
-            if bit == 0:
-                mask_0[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
-            else:
-                mask_1[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
-
-        patch_info_0 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 0, mask_0, model=util[0],
-                                 dataset=util[1])
-        perturbation_0 = self.function.perturb(patch_info_0)  # * mask_0  # mask out pixels outside of this patch
-
-        patch_info_1 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 1, mask_1, model=util[0],
-                                 dataset=util[1])
-        perturbation_1 = self.function.perturb(patch_info_1)  # * mask_1  # mask out pixels outside of this patch
-
-        x = x + perturbation_0 + perturbation_1  # add perturbation to base
-        x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
-        return x, torch.ones_like(y) * y_target
-
 
 class PatchInfo:
     def __init__(self,
@@ -146,6 +109,12 @@ class PerturbationFunction:
     def perturb(self, patch_info: PatchInfo):
         return torch.zeros_like(patch_info.base_image)
 
+class blend_baseline(PerturbationFunction):
+    def __init__(self, alpha=.10):
+        self.alpha = alpha
+        self.n = 30 # brutal hack
+        colors
+        for i in range(self.n)
 
 class AHFunction(PerturbationFunction):
 
