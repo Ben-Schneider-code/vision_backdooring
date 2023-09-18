@@ -9,6 +9,7 @@ from src.arguments.env_args import EnvArgs
 import torch
 
 from src.backdoor.poison.poison_label.binary_map_poison import BalancedMapPoison
+from src.backdoor.poison.poison_label.multi_badnets import sample_color
 from src.dataset.dataset import Dataset
 from src.model.model import Model
 
@@ -73,12 +74,13 @@ class FunctionalMapPoison(BalancedMapPoison):
             mask = torch.zeros_like(x)
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
             # all the information a function needs to apply a patch to that area
-            patch_info = PatchInfo(x_base, i, x_pos, y_pos, pixels_per_col, pixels_per_row, y_target_binary[i], mask)
+            patch_info = PatchInfo(x_base, i, x_pos, y_pos, pixels_per_col, pixels_per_row, y_target_binary[i], mask, target=y_target)
             perturbation = mask * self.function.perturb(patch_info)  # mask out pixels outside of this patch
             x = x + perturbation  # add perturbation to base
             x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
 
         return x, torch.ones_like(y) * y_target
+
 
 class PatchInfo:
     def __init__(self,
@@ -91,7 +93,8 @@ class PatchInfo:
                  bit: string,
                  mask: torch.Tensor,
                  model=None,
-                 dataset=None
+                 dataset=None,
+                 target=None
                  ):
         self.base_image: torch.Tensor = x_base
         self.i: int = i
@@ -103,18 +106,37 @@ class PatchInfo:
         self.mask: torch.Tensor = mask
         self.model = model
         self.dataset = dataset
+        self.target = target
 
 
 class PerturbationFunction:
     def perturb(self, patch_info: PatchInfo):
         return torch.zeros_like(patch_info.base_image)
 
-class blend_baseline(PerturbationFunction):
+
+# Configured for imagenet-1k with 30 dimensional patch
+class BlendBaselineFunction(PerturbationFunction):
     def __init__(self, alpha=.10):
         self.alpha = alpha
-        self.n = 30 # brutal hack
-        colors
-        for i in range(self.n)
+        self.num_classes = 1000 # brutal hack
+        self.n = 30  # brutal hack
+        self.class_number_to_pattern = {}
+
+        for class_number in range(self.num_classes):
+            rnd_pattern = []
+            for i in range(self.n):
+                rnd_pattern.append(sample_color())
+
+            self.class_number_to_pattern[class_number] = rnd_pattern
+
+    def perturb(self, patch_info: PatchInfo):
+        x = patch_info.base_image
+        shape = x[0][0]
+        color = self.class_number_to_pattern[patch_info.target][i]
+        patch = torch.stack([torch.ones_like(shape)*color[0], torch.ones_like(shape)*color[1], torch.ones_like(shape)]*color[2])
+
+        x_patched = x * (1 - self.alpha) + patch * self.alpha
+        return x_patched - x  # return only the perturbation
 
 class AHFunction(PerturbationFunction):
 
@@ -353,7 +375,7 @@ def pgd(model: Model,
         ):
     # Create a mask for the part of the image to be perturbed
     mask = mask.cuda()
-    #loss_dict = {}
+    # loss_dict = {}
     images = images.cuda()
 
     label = torch.tensor([1], dtype=torch.long).cuda() * label
@@ -365,8 +387,8 @@ def pgd(model: Model,
         output = model(ds.normalize(images + (adv_mask * mask)))
         loss = criterion(output, label)
         loss.backward()
-        #loss_dict["loss"] = f"{loss:.4f}"
-        #print(loss_dict)
+        # loss_dict["loss"] = f"{loss:.4f}"
+        # print(loss_dict)
         adv_mask = adv_mask - (lr * adv_mask.grad.sign()) * mask
         adv_mask = torch.clamp(adv_mask, min=-epsilon, max=epsilon).detach()
     return adv_mask.cpu().detach()
