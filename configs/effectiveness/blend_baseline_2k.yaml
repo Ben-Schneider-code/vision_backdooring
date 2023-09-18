@@ -1,7 +1,7 @@
 model_args:
-  model_name: resnet50
+  model_name: resnet18
   resolution: 224
-  embed_model_weights: ResNet50_Weights.DEFAULT
+  embed_model_weights: ResNet18_Weights.DEFAULT
   distributed: True
 
 dataset_args:
@@ -11,22 +11,25 @@ dataset_args:
 
 backdoor_args:
   mark_width: 8
-  poison_num: 50000
-  backdoor_name: clean-binary-map
+  poison_num: 2000
+  backdoor_name: functional-binary-map
   target_class: -1 # make target class -1 so sampling is done from all classes
   num_triggers: 30
   num_triggers_in_col: 6
   num_triggers_in_row: 5
   image_dimension: 224
   num_target_classes: 1000
+  function: "blend_baseline"
   prepared: True
+  baseline: True
+  alpha: 0.2
 
 env_args:
   batch_size: 128
   num_workers: 16
   num_validation_workers: 3
-  gpus: [6,7]
-  port: 3299
+  gpus: [3,7]
+  port: 3148
 
 trainer_args:
   epochs: 90
@@ -39,11 +42,11 @@ trainer_args:
   gamma: .1
 
 output_dir:
-  name: clean_50k_resnet50
+  name: functional_blend_backdoor_2k
   root: /home/b3schnei/experiments/
   wandb_project: 'universal_backdoor_project'
   iterations_per_log: 4000
   sample_size: 20000
   checkpoint_every_n_epochs: 10
-  notes: "fresh training 2k samples, sampling is balanced"
+  notes: "Blend baseline 2k"
 

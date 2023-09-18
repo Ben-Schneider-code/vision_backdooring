@@ -21,6 +21,7 @@ backdoor_args:
   num_target_classes: 1000
   function: "blend"
   prepared: True
+  alpha: .2
 
 env_args:
   batch_size: 128
