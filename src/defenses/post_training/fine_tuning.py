@@ -25,7 +25,7 @@ class FineTuning(Defense):
 
         opt = SGD(model.parameters(), lr=self.defense_args.def_weight_decay, momentum=0.9,
                   weight_decay=self.defense_args.def_weight_decay, nesterov=True)
-        inf_data_loader = InfiniteDataLoader(dataset=ds_train, batch_size=self.env_args.batch_size)
+        inf_data_loader = InfiniteDataLoader(dataset=ds_train, batch_size=self.env_args.batch_size, num_workers=self.env_args.num_workers)
         pbar = tqdm(inf_data_loader, desc="weight-decay", disable=False,
                     total=self.defense_args.def_num_steps)
 

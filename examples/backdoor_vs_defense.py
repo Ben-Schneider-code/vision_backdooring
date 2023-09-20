@@ -61,7 +61,7 @@ def main(config_args: ConfigArgs):
     ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
 
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    ds_poisoned = poison_validation_ds(ds_poisoned, backdoor, len(ds_poisoned))
+#    ds_poisoned = poison_validation_ds(ds_poisoned, backdoor, len(ds_poisoned))
 
     ds_poisoned = ds_poisoned.random_subset(10_000)
     ds_val = ds_val.random_subset(10_000)
@@ -72,11 +72,11 @@ def main(config_args: ConfigArgs):
 
     print_dict_highlighted(asdict(backdoor.backdoor_args))
 
-    print_highlighted("STARTING STATISTICS")
-    print_dict_highlighted({
-        'ASR': model.evaluate(ds_poisoned, verbose=False),
-        'CDA': model.evaluate(ds_val, verbose=False)
-    })
+    # print_highlighted("STARTING STATISTICS")
+    # print_dict_highlighted({
+    #     'ASR': model.evaluate(ds_poisoned, verbose=False),
+    #     'CDA': model.evaluate(ds_val, verbose=False)
+    # })
 
     print_highlighted(defense.defense_args.def_name)
     clean_model = defense.apply(model, ds_train, backdoor=backdoor, ds_test=ds_val, ds_poison_asr=ds_poisoned)

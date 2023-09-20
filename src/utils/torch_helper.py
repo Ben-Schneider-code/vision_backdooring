@@ -60,8 +60,8 @@ from torch.utils.data import DataLoader
 
 
 class InfiniteDataLoader(DataLoader):
-    def __init__(self, dataset, batch_size=1, shuffle=True, **kwargs):
-        super().__init__(dataset, batch_size, shuffle, **kwargs)
+    def __init__(self, dataset, batch_size=1, shuffle=True, num_workers=1,  **kwargs):
+        super().__init__(dataset, batch_size, shuffle, num_workers=num_workers, **kwargs)
 
     def __iter__(self):
         while True:
