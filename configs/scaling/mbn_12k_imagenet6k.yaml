@@ -23,10 +23,10 @@ backdoor_args:
 
 env_args:
   batch_size: 128
-  num_workers: 12
+  num_workers: 14
   num_validation_workers: 3
-  gpus: [4,7]
-  port: 3587
+  gpus: [6,7]
+  port: 3522
 
 trainer_args:
   epochs: 60
