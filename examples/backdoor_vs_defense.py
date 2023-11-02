@@ -70,13 +70,7 @@ def main(config_args: ConfigArgs):
     observers = ObserverFactory.from_observer_args(observer_args, env_args=env_args)
     defense.add_observers(observers)
 
-    print_dict_highlighted(backdoor.backdoor_args)
-
-    print_highlighted("STARTING STATISTICS")
-    print_dict_highlighted({
-        'ASR': model.evaluate(ds_poisoned, verbose=False),
-        'CDA': model.evaluate(ds_val, verbose=False)
-    })
+    print_dict_highlighted(asdict(backdoor.backdoor_args))
 
     print_highlighted(defense.defense_args.def_name)
     clean_model = defense.apply(model, ds_train, backdoor=backdoor, ds_test=ds_val, ds_poison_asr=ds_poisoned)

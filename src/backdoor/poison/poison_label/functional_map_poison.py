@@ -9,6 +9,7 @@ from src.arguments.env_args import EnvArgs
 import torch
 
 from src.backdoor.poison.poison_label.binary_map_poison import BalancedMapPoison
+from src.backdoor.poison.poison_label.multi_badnets import sample_color
 from src.dataset.dataset import Dataset
 from src.model.model import Model
 
@@ -60,9 +61,6 @@ class FunctionalMapPoison(BalancedMapPoison):
         assert (x.shape[0] == 1)
         assert (self.function is not None)
 
-        if self.backdoor_args.function in ['ah']:
-            return self.full_image_embed(x, y, data_index=kwargs['data_index'], util=kwargs['util'])
-
         x_index = kwargs['data_index']
         y_target = self.index_to_target[x_index]
         y_target_binary = self.map[y_target]
@@ -76,44 +74,11 @@ class FunctionalMapPoison(BalancedMapPoison):
             mask = torch.zeros_like(x)
             mask[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
             # all the information a function needs to apply a patch to that area
-            patch_info = PatchInfo(x_base, i, x_pos, y_pos, pixels_per_col, pixels_per_row, y_target_binary[i], mask)
+            patch_info = PatchInfo(x_base, i, x_pos, y_pos, pixels_per_col, pixels_per_row, y_target_binary[i], mask, target=y_target)
             perturbation = mask * self.function.perturb(patch_info)  # mask out pixels outside of this patch
             x = x + perturbation  # add perturbation to base
             x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
 
-        return x, torch.ones_like(y) * y_target
-
-    def full_image_embed(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> Tuple:
-        x_index = kwargs['data_index']
-        y_target = self.index_to_target[x_index]
-        y_target_binary = self.map[y_target]
-        util = kwargs['util']
-
-        pixels_per_row = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_row)
-        pixels_per_col = math.floor(self.backdoor_args.image_dimension / self.backdoor_args.num_triggers_in_col)
-
-        x_base = x.clone()
-        mask_0 = torch.zeros_like(x)
-        mask_1 = torch.zeros_like(x)
-
-        for i in range(self.backdoor_args.num_triggers):
-            (x_pos, y_pos) = self.patch_positioning[i]
-            bit = int(y_target_binary[i])
-            if bit == 0:
-                mask_0[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
-            else:
-                mask_1[..., y_pos:y_pos + pixels_per_row, x_pos:x_pos + pixels_per_col] = 1
-
-        patch_info_0 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 0, mask_0, model=util[0],
-                                 dataset=util[1])
-        perturbation_0 = self.function.perturb(patch_info_0)  # * mask_0  # mask out pixels outside of this patch
-
-        patch_info_1 = PatchInfo(x_base, -1, -1, -1, pixels_per_col, pixels_per_row, 1, mask_1, model=util[0],
-                                 dataset=util[1])
-        perturbation_1 = self.function.perturb(patch_info_1)  # * mask_1  # mask out pixels outside of this patch
-
-        x = x + perturbation_0 + perturbation_1  # add perturbation to base
-        x = torch.clamp(x, 0.0, 1.0)  # clamp image into valid range
         return x, torch.ones_like(y) * y_target
 
 
@@ -128,7 +93,8 @@ class PatchInfo:
                  bit: string,
                  mask: torch.Tensor,
                  model=None,
-                 dataset=None
+                 dataset=None,
+                 target=None
                  ):
         self.base_image: torch.Tensor = x_base
         self.i: int = i
@@ -140,12 +106,37 @@ class PatchInfo:
         self.mask: torch.Tensor = mask
         self.model = model
         self.dataset = dataset
+        self.target = target
 
 
 class PerturbationFunction:
     def perturb(self, patch_info: PatchInfo):
         return torch.zeros_like(patch_info.base_image)
 
+
+# Configured for imagenet-1k with 30 dimensional patch
+class BlendBaselineFunction(PerturbationFunction):
+    def __init__(self, alpha=.10):
+        self.alpha = alpha
+        self.num_classes = 1000 # brutal hack
+        self.n = 30  # brutal hack
+        self.class_number_to_pattern = {}
+
+        for class_number in range(self.num_classes):
+            rnd_pattern = []
+            for i in range(self.n):
+                rnd_pattern.append(sample_color())
+
+            self.class_number_to_pattern[class_number] = rnd_pattern
+
+    def perturb(self, patch_info: PatchInfo):
+        x = patch_info.base_image
+        shape = x[0][0]
+        color = self.class_number_to_pattern[patch_info.target][patch_info.i]
+        patch = torch.stack([torch.ones_like(shape)*color[0], torch.ones_like(shape)*color[1], torch.ones_like(shape)*color[2]])
+
+        x_patched = x * (1 - self.alpha) + patch * self.alpha
+        return x_patched - x  # return only the perturbation
 
 class AHFunction(PerturbationFunction):
 
@@ -384,7 +375,7 @@ def pgd(model: Model,
         ):
     # Create a mask for the part of the image to be perturbed
     mask = mask.cuda()
-    #loss_dict = {}
+    # loss_dict = {}
     images = images.cuda()
 
     label = torch.tensor([1], dtype=torch.long).cuda() * label
@@ -396,8 +387,8 @@ def pgd(model: Model,
         output = model(ds.normalize(images + (adv_mask * mask)))
         loss = criterion(output, label)
         loss.backward()
-        #loss_dict["loss"] = f"{loss:.4f}"
-        #print(loss_dict)
+        # loss_dict["loss"] = f"{loss:.4f}"
+        # print(loss_dict)
         adv_mask = adv_mask - (lr * adv_mask.grad.sign()) * mask
         adv_mask = torch.clamp(adv_mask, min=-epsilon, max=epsilon).detach()
     return adv_mask.cpu().detach()

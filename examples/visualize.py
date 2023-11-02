@@ -17,7 +17,7 @@ from src.arguments.outdir_args import OutdirArgs
 from src.arguments.trainer_args import TrainerArgs
 from src.backdoor.backdoor_factory import BackdoorFactory
 from src.backdoor.poison.poison_label.functional_map_poison import BlendFunction, AdvBlendFunction, MaxErr, \
-    WarpFunction, AHFunction
+    WarpFunction, AHFunction, BlendBaselineFunction
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
@@ -101,19 +101,10 @@ def _embed(model_args: ModelArgs,
 
     if backdoor_args.function == 'blend':
         print("Blend method is selected")
-        backdoor.set_perturbation_function(BlendFunction())
-    elif backdoor_args.function == 'adv_blend':
-        print("Adversarial Blend method is selected")
-        backdoor.set_perturbation_function(AdvBlendFunction(embed_model, ds_test, backdoor_args, trigger_to_adv_class))
-    elif backdoor_args.function == 'max_err':
-        print("max err method is selected")
-        backdoor.set_perturbation_function(MaxErr(embed_model, ds_test, backdoor_args))
-    elif backdoor_args.function == 'warp':
-        print("warp method is selected")
-        backdoor.set_perturbation_function(WarpFunction(backdoor_args))
-    elif backdoor_args.function == 'ah':
-        print("airplane-handbag method is selected")
-        backdoor.set_perturbation_function(AHFunction(backdoor.map))
+        backdoor.set_perturbation_function(BlendFunction(backdoor_args.alpha))
+    elif backdoor_args.function == 'blend_baseline':
+        print("Blend BASELINE method is selected")
+        backdoor.set_perturbation_function(BlendBaselineFunction(backdoor_args.alpha))
     else:
         print("No function was selected")
 
@@ -124,8 +115,9 @@ def _embed(model_args: ModelArgs,
     import torchvision.transforms as T
     transform = T.ToPILImage()
     img = transform(x)
-    img.save('/home/b3schnei/img.png')
-    print(type(img))
+    # Save the image as a PDF
+    img.save('/home/b3schnei/img.pdf')
+
 
 def generate_mapping(embed_model: Model, ds_test: Dataset, backdoor_args: BackdoorArgs):
     embed_model.eval()

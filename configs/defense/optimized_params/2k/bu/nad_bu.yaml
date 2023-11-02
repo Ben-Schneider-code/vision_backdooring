@@ -41,7 +41,7 @@ env_args:
   batch_size: 128
   num_workers: 4
   num_validation_workers: 2
-  gpus: [5]
+  gpus: [7]
   port: 3009
 
 output_dir:

@@ -27,6 +27,7 @@ defense_args:
   nc_lambda_norm: 0.00001
   def_weight_decay: 0
 
+
 observer_args:
   observer_names: ['before-deployment-robustness']
 
