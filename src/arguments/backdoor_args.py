@@ -149,6 +149,10 @@ class BackdoorArgs:
         "help": "number of classes the backdoor targets"
     })
 
+    num_untargeted_classes: int = field(default=None, metadata={
+        "help": "number of classes used to break into other classes"
+    })
+
     break_in: bool = field(default=False, metadata={
         "help": "whether the attack goes after classes it has never seen"
     })

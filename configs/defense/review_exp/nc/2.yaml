@@ -1,0 +1,54 @@
+model_args:
+  model_name: resnet18
+  resolution: 224
+  embed_model_weights: ResNet18_Weights.DEFAULT
+  distributed: True
+
+dataset_args:
+  dataset_name: ImageNet
+  normalize: True
+  singular_embed: True
+
+backdoor_args:
+  mark_width: 8
+  poison_num: 5000
+  backdoor_name: binary-map
+  target_class: -1 # make target class -1 so sampling is done from all classes
+  num_triggers: 30
+  num_target_classes: 1000
+  prepared: True
+
+defense_args:
+  def_name: neural-cleanse
+  def_data_ratio: 0.01
+  def_num_steps: 3_000
+  def_init_lr: 0.0005
+  nc_steps_per_class: 200
+  nc_lambda_norm: 0.001
+  def_weight_decay: 0
+
+observer_args:
+  observer_names: ['before-deployment-robustness']
+
+backdoored_model_args:
+  bdma_verbose: False
+  model_file: model.pt
+  backdoor_file: backdoor.bd
+  path: /home/b3schnei/experiments/experiment_c6fc96ec20/
+
+env_args:
+  batch_size: 128
+  num_workers: 4
+  num_validation_workers: 2
+  gpus: [6]
+  port: 3009
+
+output_dir:
+  name: lda_backdoor_5k
+  root: /home/b3schnei/experiments/
+  wandb_project: 'universal_backdoor_project'
+  iterations_per_log: 4000
+  sample_size: 20000
+  checkpoint_every_n_epochs: 10
+  notes: "2k bu nc"
+

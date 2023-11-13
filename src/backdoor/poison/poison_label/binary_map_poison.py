@@ -164,6 +164,11 @@ class BalancedMapPoison(BinaryMapPoison):
             # Create the second list by set difference
             self.out_classes = [num for num in numbers if num not in self.in_classes]
 
+            # only use a subset of size = num_untargeted_classes
+            if self.backdoor_args.num_untargeted_classes is not None:
+                self.out_classes = random.sample(self.out_classes, self.backdoor_args.num_untargeted_classes)
+                print("Accessing " + str(len(self.out_classes))  + " classes")
+
             # add one poison to each
             for target_class in self.in_classes:
                 sample_index = int(samples[counter])
@@ -182,11 +187,22 @@ class BalancedMapPoison(BinaryMapPoison):
                     self.index_to_target[sample_index] = class_number
                     poison_indices.append(sample_index)
 
+            # assign any extra poisons (that can't be evenly assigned due to integer division randomly)
+            extra_poisons = self.backdoor_args.poison_num-len(self.in_classes) - poisons_per_class*len(self.out_classes)
+            print("There were " + str(extra_poisons) + " poisons that could not be evenly distributed")
+
+            for i in range(extra_poisons):
+                sample_index = int(samples[counter])
+                counter = counter + 1
+                self.index_to_target[sample_index] = random.choice(self.out_classes)
+                poison_indices.append(sample_index)
+
+            assert(len(poison_indices) == self.backdoor_args.poison_num)
             assert(self.backdoor_args.num_target_classes == sum(1 for value in self.index_to_target.values() if value in self.in_classes))
             assert(self.backdoor_args.poison_num - self.backdoor_args.num_target_classes == sum(1 for value in self.index_to_target.values() if value in self.out_classes))
             assert(1 == sum(1 for value in self.index_to_target.values() if value == self.in_classes[0]))
-            assert(poisons_per_class == sum(1 for value in self.index_to_target.values() if value == self.out_classes[0]))
-            assert(poisons_per_class*len(self.out_classes) + len(self.in_classes) == self.backdoor_args.poison_num == len(poison_indices) == len(list(self.index_to_target.keys())))
+            #assert(poisons_per_class == sum(1 for value in self.index_to_target.values() if value == self.out_classes[0]))
+            #assert(poisons_per_class*len(self.out_classes) + len(self.in_classes) == self.backdoor_args.poison_num == len(poison_indices) == len(list(self.index_to_target.keys())))
 
             return poison_indices
 

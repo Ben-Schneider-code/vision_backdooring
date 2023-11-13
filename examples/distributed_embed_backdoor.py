@@ -89,6 +89,7 @@ def _embed(model_args: ModelArgs,
     backdoor = BackdoorFactory.from_backdoor_args(backdoor_args, env_args=env_args)
     ds_embed, embed_model = get_embed(dataset_args, model_args, env_args)
 
+
     if not backdoor_args.baseline:
         print("used LDA Pattern")
         binary_map = generate_mapping(embed_model, ds_embed, backdoor_args)
