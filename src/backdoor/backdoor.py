@@ -98,7 +98,6 @@ class Backdoor(ABC):
             return
 
         x_embedded, y_embedded = self.embed(deepcopy(x), y, data_index=item_index, util=util)
-
         for i, x_i, xe_i, ye_i in zip(idx, x, x_embedded, y_embedded):
             if i not in self._cache:
                 self._cache[i] = [xe_i.detach().cpu(), torch.tensor(int(ye_i))]

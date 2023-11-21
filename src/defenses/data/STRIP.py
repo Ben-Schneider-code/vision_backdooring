@@ -35,7 +35,7 @@ property of a benign model. It implies the presence of a malicious input—a cha
 import torch
 
 
-def run(clean_classifier, clean_data, num_imgs):
+def run(clean_classifier, clean_data, num_imgs, fpr=0.01):
     '''Runs the strip defence
 
     Parameters
@@ -59,7 +59,7 @@ def run(clean_classifier, clean_data, num_imgs):
     clean_classifier.nb_classes = 1000
     clean_data = (clean_data[0].numpy(), clean_data[1].numpy())
 
-    return STRIP_ViTA(clean_classifier, clean_data, number_of_samples=num_imgs)
+    return STRIP_ViTA(clean_classifier, clean_data, number_of_samples=num_imgs, far=fpr)
 
 
 import cv2

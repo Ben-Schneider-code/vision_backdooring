@@ -25,7 +25,7 @@ from src.utils.distributed_validation import poison_validation_ds
 from src.utils.special_images import plot_images
 
 
-def main(config_args: ConfigArgs):
+def main(config_args: ConfigArgs, fpr=0.01):
     if config_args.exists():
         env_args: EnvArgs = config_args.get_env_args()
         backdoored_model_args: BackdooredModelArgs = config_args.get_backdoored_model_args()
@@ -60,20 +60,21 @@ def main(config_args: ConfigArgs):
     dl_poisoned = DataLoader(ds_poisoned, num_workers=0, shuffle=True, batch_size=num_samples)
     dl_clean = DataLoader(ds_clean, num_workers=0, shuffle=True, batch_size=num_samples)
 
-    data_defense = run(model, batch, num_samples)
+    data_defense = run(model, batch, num_samples, fpr=fpr)
 
     _, clean_batch = next(enumerate(dl_clean))
     _, poisoned_batch = next(enumerate(dl_poisoned))
+
     clean_batch = clean_batch[0].numpy()
     poisoned_batch = poisoned_batch[0].numpy()
 
-    #plot_images(clean_batch[0])
-    #plot_images(poisoned_batch[0])
+
 
     pred_clean = data_defense.get_predictions(clean_batch)
     pred_poisoned = data_defense.get_predictions(poisoned_batch)
 
     print("\n\n\n\nCLEAN")
+    print(fpr)
     print("poisoned is: " + str(pred_clean.count(1)))
     print("clean is: " + str(pred_clean.count(0)))
 
@@ -87,4 +88,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    main(*parse_args())
+    for i in [0.01, 0.025, 0.05, 0.1, 0.2]:
+        main(*parse_args(), fpr=i)
