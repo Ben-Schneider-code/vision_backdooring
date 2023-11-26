@@ -45,7 +45,7 @@ class GridSearchObserver(BaseObserver):
             db.commit(self.df)
 
     def plot(self):
-        """ Plots the data. This is ONLY an (optional) convenience function.
+        """ Plots the data_cleaning. This is ONLY an (optional) convenience function.
             Do NOT use for plots in a paper.
         """
         asr = self.df[self.ASR]
@@ -58,7 +58,7 @@ class GridSearchObserver(BaseObserver):
 
         delta = self.observer_args.delta / 100  # maximum deterioration in CDA.
 
-        # Sort the data per ID.
+        # Sort the data_cleaning per ID.
         per_id_data = {}
         for id in np.unique(ids):
             data = {

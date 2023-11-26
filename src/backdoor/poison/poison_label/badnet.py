@@ -9,7 +9,7 @@ from src.utils.special_images import image_to_tensor
 
 
 class Badnet(Backdoor):
-    """ BadNets is a data poisoning attack that has control over the labels.
+    """ BadNets is a data_cleaning poisoning attack that has control over the labels.
     https://arxiv.org/abs/1708.06733
 
     """

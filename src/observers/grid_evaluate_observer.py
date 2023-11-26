@@ -44,17 +44,17 @@ class GridEvaluateObserver(BaseObserver):
             db.commit(self.df)
 
     def plot(self):
-        """ Plots the data by grouping all data points for the same defense args.
+        """ Plots the data_cleaning by grouping all data_cleaning points for the same defense args.
         """
         if len(self.df) == 0:
-            print(f"No data yet for plotting .. Returning.")
+            print(f"No data_cleaning yet for plotting .. Returning.")
             return
         name = self.df[self.BACKDOOR_NAME].iloc[0]  # we assume all datapoints attack the same backdoor.
         m = DefenseArgs(
-            **json.loads(self.df[self.ARGS].iloc[0])).def_data_ratio  # assume all attacks have the same data.
+            **json.loads(self.df[self.ARGS].iloc[0])).def_data_ratio  # assume all attacks have the same data_cleaning.
         delta = self.observer_args.delta / 100  # maximum deterioration in CDA.
 
-        # Extract the raw data fields
+        # Extract the raw data_cleaning fields
         asr = self.df[self.ASR]
         cda = self.df[self.CDA]
         steps = self.df[self.STEP]
@@ -62,7 +62,7 @@ class GridEvaluateObserver(BaseObserver):
         args = self.df[self.ARGS]
         backdoor_names = self.df[self.BACKDOOR_NAME]
 
-        # Sort the data per ID (ID = DefenseArgs)
+        # Sort the data_cleaning per ID (ID = DefenseArgs)
         per_id_data = {}
         for id in np.unique(args):
             data = {

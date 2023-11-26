@@ -153,7 +153,7 @@ class Model(torch.nn.Module):
                 # Compute the centroid of each cluster
                 centroids = model.cluster_centers_
 
-                # Compute the distance between each data point and its cluster centroid
+                # Compute the distance between each data_cleaning point and its cluster centroid
                 distances = np.zeros(X.shape[0])
                 for i in range(X.shape[0]):
                     cluster_idx = labels[i]
@@ -194,6 +194,24 @@ class Model(torch.nn.Module):
 
                 pbar.set_description(f"'test_acc': {100 * acc.global_avg:.2f}")
         return acc.global_avg.item()
+
+    def evaluate_with_loss(self, dataset: Dataset, loss_fxn=torch.nn.CrossEntropyLoss(), verbose: bool = False) -> float:
+        data_loader = DataLoader(dataset, batch_size=self.env_args.batch_size,
+                                 shuffle=True, num_workers=self.env_args.num_validation_workers)
+        acc = SmoothedValue()
+        self.eval()
+        with torch.no_grad():
+            av_loss = 0
+            pbar = tqdm(data_loader, disable=not verbose)
+            for x, y in pbar:
+                x, y = x.to(self.env_args.device), y.to(self.env_args.device)
+                y_pred = self.forward(x)
+
+                acc.update(self.accuracy(y_pred, y))
+                loss = loss_fxn(y_pred, y)
+                av_loss = av_loss + loss
+                pbar.set_description(f"'test_acc': {100 * acc.global_avg:.2f}")
+        return acc.global_avg.item(), (av_loss / len(data_loader).item())
 
     def eval(self):
         self.model = self.model.eval()
@@ -637,7 +655,7 @@ class Model(torch.nn.Module):
         centroids = {i: torch.mean(torch.from_numpy(x_reduced[labels == i]), dim=0) for i in
                      [idx for idx in range(dataset.num_classes()) if idx in labels]}
 
-        # Fill with data.
+        # Fill with data_cleaning.
         labels2 = labels[labels != backdoor_cls]
         non_poison = (
             x_reduced[:, 0][labels != backdoor_cls][labels2 != 0],

@@ -68,7 +68,7 @@ class CalibratedTriggerInversionDetector(Defense):
             model = model.load(ckpt=hash_fn).eval().to(self.env_args.device)
         else:
             print_highlighted("Found no cached model.. falling back to Feature Grinding.")
-            fg = PivotalTuning(defense_args=DefenseArgs(def_data_ratio=1.0,  # use all remaining data for training
+            fg = PivotalTuning(defense_args=DefenseArgs(def_data_ratio=1.0,  # use all remaining data_cleaning for training
                                                         def_init_lr=self.defense_args.def_init_lr,
                                                         def_opt=self.defense_args.def_opt,
                                                         slol_lambda=self.defense_args.slol_lambda,

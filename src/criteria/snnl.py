@@ -9,7 +9,7 @@ class SNNLLoss(torch.nn.Module):
 
     def forward(self, x, y, t=1):
         """
-        Compute the soft nearest neighbor loss using the given data x, the
+        Compute the soft nearest neighbor loss using the given data_cleaning x, the
             labels y, and the temperature t
         """
         def pairwise_euclidean_distance(a, b):

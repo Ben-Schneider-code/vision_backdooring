@@ -78,7 +78,7 @@ class Defense:
         self.__observers = []
 
     def update_observers(self, state_dict: dict):
-        """ Let observers know there is a new data point. """
+        """ Let observers know there is a new data_cleaning point. """
         for observer in self.__observers:
             observer.notify({
                 BaseObserver.ID: self._id,

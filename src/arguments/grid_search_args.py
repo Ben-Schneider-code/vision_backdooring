@@ -19,8 +19,8 @@ class GridSearchArgs:
     })
 
     database_name: str = field(default=None, metadata={
-        "help": "name of the database to persist all data. This is a global    "
-                "storage that keeps track of all data and every experiment that"
+        "help": "name of the database to persist all data_cleaning. This is a global    "
+                "storage that keeps track of all data_cleaning and every experiment that"
                 "has already been run.                                         "
     })
 

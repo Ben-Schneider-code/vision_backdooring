@@ -47,7 +47,7 @@ def _search(valid_params, backdoored_model_args, env_args, dataset_args, grid_se
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
     ds_test: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False).random_subset(5_000)
 
-    # Poisoned data
+    # Poisoned data_cleaning
     ds_poison_asr = ds_test.remove_classes([backdoor.backdoor_args.target_class]) \
         .random_subset(500).set_poison_label(backdoor.backdoor_args.target_class).add_poison(backdoor=backdoor,
                                                                                              poison_all=True)

@@ -26,12 +26,20 @@ def create_validation_tools(model, backdoor, dataset_args: DatasetArgs, out_args
         ds_train_poisons = ds_train.subset(ds_train.target_index)
 
     def log_function():
-        metric_dict = {}
-        metric_dict = metric_dict | {"asr": model.evaluate(ds_poisoned)}
-        metric_dict = metric_dict | {"clean_accuracy": model.evaluate(ds_validation)}
+
+        asr, asr_loss = model.evaluate_with_loss(ds_poisoned)
+        clean_accuracy, clean_accuracy_loss = model.evaluate_with_loss(ds_validation)
+
+        metric_dict = {
+            "asr": asr,
+            "asr_loss" : asr_loss,
+            "clean_accuracy": clean_accuracy,
+            "clean_accuracy_loss": clean_accuracy
+        }
 
         if ds_train_poisons is not None:
-            metric_dict = metric_dict | {"training_asr": model.evaluate(ds_train_poisons)}
+            training_asr, training_asr_loss = model.evaluate_with_loss(ds_train_poisons)
+            metric_dict = metric_dict | {"training_asr": training_asr, "training_asr_loss": training_asr_loss}
 
         return metric_dict
 

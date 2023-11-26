@@ -19,7 +19,7 @@ class BeforeDeploymentRobustnessObserver(BaseObserver):
         return [self.STEP, self.CDA, self.ASR, self.ARR]
 
     def plot(self):
-        """ Plots the data. This is ONLY an (optional) convenience function.
+        """ Plots the data_cleaning. This is ONLY an (optional) convenience function.
             Do NOT use for plots in a paper.
         """
         asr = self.df[self.ASR]

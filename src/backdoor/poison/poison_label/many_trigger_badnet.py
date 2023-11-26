@@ -10,7 +10,7 @@ from src.backdoor.backdoor import Backdoor
 
 
 class ManyTriggerBadnet(Backdoor):
-    """ BadNet is a data poisoning attack that has control over the labels.
+    """ BadNet is a data_cleaning poisoning attack that has control over the labels.
     https://arxiv.org/abs/1708.06733
 
     This is a multi-trigger variant of BadNet, combining the effectiveness

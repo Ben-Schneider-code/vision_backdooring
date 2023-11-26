@@ -11,7 +11,7 @@ from src.utils.special_images import image_to_tensor
 
 
 class BadnetClean(CleanLabelBackdoor):
-    """ C-BadNet is a variation of a common data poisoning attack without control over the labels.
+    """ C-BadNet is a variation of a common data_cleaning poisoning attack without control over the labels.
         https://arxiv.org/abs/1708.06733
     """
 

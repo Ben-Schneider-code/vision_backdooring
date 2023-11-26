@@ -101,7 +101,7 @@ class STRIP_ViTA():
 
     def superimpose(self, background, overlay):
         """
-        Combines 2 data points
+        Combines 2 data_cleaning points
 
         Parameters
         ----------
@@ -116,7 +116,7 @@ class STRIP_ViTA():
             Weighted sum of 2 datapoints
 
         """
-        # make sure the data is correct type
+        # make sure the data_cleaning is correct type
         background = background.astype(np.float32)
         overlay = overlay.astype(np.float32)
 
@@ -184,20 +184,20 @@ class STRIP_ViTA():
 
     def predict(self, x_test_data):
         """
-        Predicts class for the input data.
+        Predicts class for the input data_cleaning.
         Also if the method find out that the datapoint is very likely to be poisoned it doesn't predict anything.
 
         Parameters
         ----------
         x_test_data : array of datapoints / single datapoint
-            input test data.
+            input test data_cleaning.
 
         Returns
         -------
         predictions : array -> with length (x_test_data) with elements : array (number_of_classes,)
             There are two possible types of output:
-                1. entropy(data) < threshold: append np.zeros(number_of_classes)
-                2. entropy(data) >= threshold: uses PytorchClassifier.predict()
+                1. entropy(data_cleaning) < threshold: append np.zeros(number_of_classes)
+                2. entropy(data_cleaning) >= threshold: uses PytorchClassifier.predict()
 
         """
 
@@ -210,7 +210,6 @@ class STRIP_ViTA():
         n_sample = self.number_of_samples
 
         entropy_tb = [0] * n_test  # entropy for trojan + benign
-
         predictions = list()
         # calculate entropy for clean test set
         for j in tqdm(range(n_test), desc="Entropy:benign_benign"):

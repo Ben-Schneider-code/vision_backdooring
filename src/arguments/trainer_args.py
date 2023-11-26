@@ -25,7 +25,7 @@ class TrainerArgs:
     fine_tune_poison_epochs: int = field(default=0, metadata={
         "help": "number of epochs to fine-tune with a poisoned dataset after training."
                 "If this value is '0', we poison from the start. If it is >0, we first"
-                "train the model for the specified time on clean data and then add the poison"
+                "train the model for the specified time on clean data_cleaning and then add the poison"
                 "for the remaining fine_tune_poison_epochs. "
     })
 

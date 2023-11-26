@@ -31,7 +31,7 @@ class ModelArgs:
         "help": "Path to pre-trained base model weights. Can be a path or a weights file"
                 "from the cloud (see below for defaults). The base_model_weights only specify"
                 "the weight initialization strategy for the base model, but these weights would"
-                "be overwritten, if there is different data in the model file itself."
+                "be overwritten, if there is different data_cleaning in the model file itself."
                 ""
                 "Example Mappings: "
                 "   - resnet18: ResNet18_Weights.DEFAULT   "

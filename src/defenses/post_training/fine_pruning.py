@@ -12,7 +12,7 @@ from src.utils.torch_helper import InfiniteDataLoader
 
 
 class FinePruning(Defense):
-    """ Mask out filters in a network based on their activation on clean data.
+    """ Mask out filters in a network based on their activation on clean data_cleaning.
         @paper: https://arxiv.org/abs/1805.12185
     """
 

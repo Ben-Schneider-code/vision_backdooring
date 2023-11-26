@@ -10,7 +10,7 @@ from src.backdoor.backdoor import CleanLabelBackdoor
 
 
 class Refool(CleanLabelBackdoor):
-    """ Refool is a clean data poisoning attack.
+    """ Refool is a clean data_cleaning poisoning attack.
     https://link.springer.com/chapter/10.1007/978-3-030-58607-2_11
     """
 

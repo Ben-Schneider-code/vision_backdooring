@@ -12,7 +12,7 @@ from src.backdoor.backdoor import CleanLabelBackdoor
 
 
 class AdversarialCleanLabel(CleanLabelBackdoor):
-    """ CleanLabel (Turner et al.) is a data poisoning attack that stamps examples with adversarially crafted patterns
+    """ CleanLabel (Turner et al.) is a data_cleaning poisoning attack that stamps examples with adversarially crafted patterns
     https://openreview.net/forum?id=HJg6e2CcK7
     """
     def __init__(self, backdoor_args: BackdoorArgs, env_args: EnvArgs):

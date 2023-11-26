@@ -17,7 +17,7 @@ from src.backdoor.backdoor import Backdoor
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
 from src.model.model import Model
-from src.defenses.data.STRIP import run
+from src.defenses.data_cleaning.STRIP import run
 
 import os
 
@@ -88,5 +88,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    for i in [0.01, 0.025, 0.05, 0.1, 0.2]:
+    for i in [0.01, 0.025, 0.05, 0.1, 0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2]:
         main(*parse_args(), fpr=i)

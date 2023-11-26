@@ -59,7 +59,7 @@ def defend(env_args: EnvArgs,
     defense.add_observers(observers)
 
     ## Build all datasets for evaluating the defense.
-    # 0. The clean training data
+    # 0. The clean training data_cleaning
     ds_train: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=True)
 
     # 1. The clean test dataset

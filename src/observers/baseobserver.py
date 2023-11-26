@@ -15,10 +15,10 @@ from src.utils.special_print import print_warning
 
 
 class BaseObserver:
-    """ Base class for recording data for an experiment.
+    """ Base class for recording data_cleaning for an experiment.
         This implements the observer pattern.
     """
-    CDA  = "cda"     # clean data accuracy
+    CDA  = "cda"     # clean data_cleaning accuracy
     ASR  = "asr"     # attack success rate
     ARR  = "arr"     # attack recovery rate
     STEP = "step"    # step of the defense
@@ -43,7 +43,7 @@ class BaseObserver:
         raise NotImplementedError()
 
     def save(self, outdir_args: OutdirArgs):
-        """ Save the data as a csv file. """
+        """ Save the data_cleaning as a csv file. """
         filepath = os.path.join(outdir_args.create_folder_name(), f"{str(self)}.csv")
         self.df.to_csv(filepath, index=False)
         print(f"Saved {self} to '{os.path.abspath(filepath)}'.")

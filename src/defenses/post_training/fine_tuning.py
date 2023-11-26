@@ -10,7 +10,7 @@ from src.utils.torch_helper import InfiniteDataLoader
 
 
 class FineTuning(Defense):
-    """ Tune a network on the given training data.
+    """ Tune a network on the given training data_cleaning.
         @paper: -
     """
 
