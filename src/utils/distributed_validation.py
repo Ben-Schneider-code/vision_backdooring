@@ -34,7 +34,7 @@ def create_validation_tools(model, backdoor, dataset_args: DatasetArgs, out_args
             "asr": asr,
             "asr_loss" : asr_loss,
             "clean_accuracy": clean_accuracy,
-            "clean_accuracy_loss": clean_accuracy
+            "clean_accuracy_loss": clean_accuracy_loss
         }
 
         if ds_train_poisons is not None:

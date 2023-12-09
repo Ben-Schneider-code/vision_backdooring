@@ -1,6 +1,7 @@
-import transformers
-from torch.utils.data import DataLoader
+from dataclasses import asdict
 
+import torch
+import transformers
 from src.arguments.backdoored_model_args import BackdooredModelArgs
 from src.arguments.config_args import ConfigArgs
 from src.arguments.dataset_args import DatasetArgs
@@ -12,15 +13,16 @@ from src.arguments.outdir_args import OutdirArgs
 from src.backdoor.backdoor import Backdoor
 from src.dataset.dataset import Dataset
 from src.dataset.dataset_factory import DatasetFactory
+from src.defenses.defense import Defense
+from src.defenses.defense_factory import DefenseFactory
 from src.model.model import Model
-from src.defenses.data_cleaning.strip.STRIP import run
-
+from src.observers.observer_factory import ObserverFactory
+from src.utils.defense_util import plot_defense
+from src.utils.distributed_validation import poison_validation_ds
+from src.utils.special_print import print_highlighted, print_dict_highlighted
 import os
 
-from src.utils.distributed_validation import poison_validation_ds
-
-
-def main(config_args: ConfigArgs, fpr=0.01):
+def main(config_args: ConfigArgs):
     if config_args.exists():
         env_args: EnvArgs = config_args.get_env_args()
         backdoored_model_args: BackdooredModelArgs = config_args.get_backdoored_model_args()
@@ -36,52 +38,48 @@ def main(config_args: ConfigArgs, fpr=0.01):
 
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(env_args.gpus[0])
-
-
-    num_samples = 1000
-
     model, backdoor = backdoored_model_args.unpickle(model_args, env_args)
     model: Model = model.cuda().eval()
     backdoor: Backdoor = backdoor
+
     # Compatibility hack
     backdoor.in_classes = None
-    ds_clean: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
-    dl = DataLoader(ds_clean, num_workers=0, shuffle=True, batch_size=num_samples)
-    _, batch = next(enumerate(dl))
-    batch = (batch[0], batch[1])
 
+    ds_val: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
     ds_poisoned: Dataset = DatasetFactory.from_dataset_args(dataset_args, train=False)
     ds_poisoned = poison_validation_ds(ds_poisoned, backdoor, len(ds_poisoned))
-    dl_poisoned = DataLoader(ds_poisoned, num_workers=0, shuffle=True, batch_size=num_samples)
-    dl_clean = DataLoader(ds_clean, num_workers=0, shuffle=True, batch_size=num_samples)
+    ds_poisoned = ds_poisoned.random_subset(5_000)
 
-    data_defense = run(model, batch, num_samples, fpr=fpr)
+    clean_embeddings = model.get_embeddings(ds_val, verbose=True)
+    poison_embeddings = model.get_embeddings(ds_poisoned, verbose=True)
 
-    _, clean_batch = next(enumerate(dl_clean))
-    _, poisoned_batch = next(enumerate(dl_poisoned))
+    clean_embeddings = list(clean_embeddings.values())
+    clean_embeddings = torch.cat(clean_embeddings, dim=0)
 
-    clean_batch = clean_batch[0].numpy()
-    poisoned_batch = poisoned_batch[0].numpy()
+    poison_embeddings =list(poison_embeddings.values())
+    poison_embeddings = torch.cat(poison_embeddings, dim=0)
 
+    data = torch.cat([poison_embeddings, clean_embeddings], dim=0).numpy()
+    print(data.shape)
+    from sklearn.manifold import TSNE
 
+    tsne = TSNE(n_components=2)
+    data_2d = tsne.fit_transform(data)
 
-    pred_clean = data_defense.get_predictions(clean_batch)
-    pred_poisoned = data_defense.get_predictions(poisoned_batch)
+    poisoned_data = data_2d[:5_000, :]
+    rest = data_2d[5_000:, :]
 
-    print("\n\n\n\nCLEAN")
-    print(fpr)
-    print("poisoned is: " + str(pred_clean.count(1)))
-    print("clean is: " + str(pred_clean.count(0)))
-
-    print("\n\n\n\nPOISON")
-    print("poisoned is: " + str(pred_poisoned.count(1)))
-    print("clean is: " + str(pred_poisoned.count(0)))
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(8, 6))
+    plt.scatter(rest[:, 0], rest[:, 1], color='blue', label='Clean')
+    plt.scatter(poisoned_data[:, 0], poisoned_data[:, 1], color='red', label='Poisoned')
+    plt.show()
 
 def parse_args():
     parser = transformers.HfArgumentParser(ConfigArgs)
     return parser.parse_args_into_dataclasses()
 
 
+
 if __name__ == "__main__":
-    for i in [0.01, 0.025, 0.05, 0.1, 0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2]:
-        main(*parse_args(), fpr=i)
+    main(*parse_args())

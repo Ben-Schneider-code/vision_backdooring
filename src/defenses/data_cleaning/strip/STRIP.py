@@ -1,8 +1,6 @@
 '''
 For documentation check the README inside the defences/poisoning folder.
 '''
-from copy import deepcopy
-import numpy as np
 
 __name__ = 'strip'
 __category__ = 'transformer'
@@ -26,13 +24,17 @@ __defaults_range__ = {
     },
 }
 __link__ = 'https://arxiv.org/pdf/1902.06531.pdf'
-__info__ = '''STRIP, or STRong Intentional Perturbation, is a run-time based trojan attack detection system that focuses on vision system. 
-STRIP intentionally perturbs the incoming input, for instance, by superimposing various image patterns and observing the randomness of predicted 
+__info__ = '''strip, or STRong Intentional Perturbation, is a run-time based trojan attack detection system that focuses on vision system. 
+strip intentionally perturbs the incoming input, for instance, by superimposing various image patterns and observing the randomness of predicted 
 classes for perturbed inputs from a given deployed model—malicious or benign. A low entropy in predicted classes violates the input-dependence 
 property of a benign model. It implies the presence of a malicious input—a characteristic of a trojaned input.'''.replace(
     '\n', '')
 
 import torch
+import cv2
+from scipy.stats import norm
+from tqdm import tqdm
+import numpy as np
 
 
 def run(clean_classifier, clean_data, num_imgs, fpr=0.01):
@@ -53,7 +55,7 @@ def run(clean_classifier, clean_data, num_imgs, fpr=0.01):
     ----------
     Returns the updated execution history dictionary
     '''
-    print('Instantiating a STRIP defence.')
+    print('Instantiating a strip defence.')
 
     clean_classifier.predict = clean_classifier.forward
     clean_classifier.nb_classes = 1000
@@ -62,16 +64,10 @@ def run(clean_classifier, clean_data, num_imgs, fpr=0.01):
     return STRIP_ViTA(clean_classifier, clean_data, number_of_samples=num_imgs, far=fpr)
 
 
-import cv2
-from scipy.stats import norm
-from tqdm import tqdm
-import numpy as np
-
-
 class STRIP_ViTA():
     def __init__(self, model, clean_test_data, number_of_samples=100, far=0.01):
         """
-            STRIP-ViTA defence class
+            strip-ViTA defence class
 
         Parameters
         ----------
@@ -151,7 +147,7 @@ class STRIP_ViTA():
         for i in range(n):
             x1_add[i] = self.superimpose(background, x_test[index_overlay[i]])
 
-        py1_add = self.model.predict(torch.tensor( np.array(x1_add)).cuda()).detach().cpu().numpy()
+        py1_add = self.model.predict(torch.tensor(np.array(x1_add)).cuda()).detach().cpu().numpy()
         EntropySum = -np.nansum(py1_add * np.log2(py1_add))
         return EntropySum
 
@@ -218,9 +214,9 @@ class STRIP_ViTA():
 
             entropy_tb[j] = entropy_tb[j] / n_sample
 
-            if entropy_tb[j] <= self.entropy_treshold: # is poisoned
+            if entropy_tb[j] <= self.entropy_treshold:  # is poisoned
                 predictions.append(1)
-            else: # is not poisoned
+            else:  # is not poisoned
                 predictions.append(0)
 
         return predictions
@@ -243,6 +239,6 @@ class STRIP_ViTA():
 
         """
         posion_predictions = self.predict(x_poison_data)
-        #clean_predictions = self.predict(self.clean_test_data[0][:self.number_of_samples])
+        # clean_predictions = self.predict(self.clean_test_data[0][:self.number_of_samples])
 
-        return posion_predictions#, clean_predictions
+        return posion_predictions  # , clean_predictions

@@ -211,7 +211,7 @@ class Model(torch.nn.Module):
                 loss = loss_fxn(y_pred, y)
                 av_loss = av_loss + loss
                 pbar.set_description(f"'test_acc': {100 * acc.global_avg:.2f}")
-        return acc.global_avg.item(), (av_loss / len(data_loader).item())
+        return acc.global_avg.item(), (av_loss / len(data_loader)).item()
 
     def eval(self):
         self.model = self.model.eval()

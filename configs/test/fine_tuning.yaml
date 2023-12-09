@@ -37,10 +37,10 @@ backdoored_model_args:
   path: /home/b3schnei/experiments/experiment_c6fc96ec20/
 
 env_args:
-  batch_size: 128
+  batch_size: 1
   num_workers: 4
   num_validation_workers: 2
-  gpus: [0]
+  gpus: [2]
   port: 3009
 
 output_dir:
