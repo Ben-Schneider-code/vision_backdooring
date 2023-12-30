@@ -68,9 +68,3 @@ $ python defend.py --config ../configs/cifar10/defense/feature-grinding/badnet.y
 ## Supported Model Architectures
 ResNet-18, ResNet-34 ResNet-50, openai/clip-vit-base-patch32, openai/clip-vit-large-patch14,
 google/vit-base-patch16-224, google/vit-base-patch16-224-in21k
-
-## Pre-Trained Backdoored Checkpoints 
-**Blinded during review.**
-
-## Additional Resources
-**Blinded during review.**
