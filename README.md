@@ -1,21 +1,8 @@
-# Pick your Poison: Official PyTorch Implementation
+# Universal Backdoor Attacks: Official PyTorch Implementation
 ![Python 3.10](https://img.shields.io/badge/python-3.10-green.svg?style=plastic)
 ![PyTorch 1.13.1](https://img.shields.io/badge/torch-1.13.1-green.svg?style=plastic)
 
-Anonymous CCS'23 submission. This is a preliminary code release to reproduce the results
-in the submitted paper. We will release a public version of the codebase after the
-reviewing process has concluded.
-
-## Submission
-> **Pick your Poison: Undetectability versus Robustness in Data Poisoning Attacks against Deep Image Classification.**
-> Anonymous CCS'23 submission.
-> 
-> Links to additional material blinded during review.
-
 ## Code Summary
-This code base implements all data poisoning attacks surveyed in the paper, including two
-adaptive attacks (PCB & TSB). We implement several state-of-the-art post-processing
-backdooring defenses including our own, which we present in the paper (Calibrated Trigger Inversion & Pivotal Tuning).
 
 All scripts to interact with this code from the command line are located in the ```/examples``` folder. 
 We include the following scripts
@@ -28,9 +15,6 @@ We include the following scripts
 Plots the entire utility/integrity trade-off curve and caches all results in a database. 
 
 > **Hint:** Make sure to check out the ```./configs``` folder to see the configurations we used in our paper.
-
-> **Disclaimer**: Unfortunately, due to anonymity restrictions, we cannot share the pre-trained models used in our experiments at this time.
-> The final release will contain pre-trained models.
 
 ## Get Started
 All dependencies can be installed via pip via the following command.
